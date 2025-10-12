@@ -86,7 +86,7 @@ public class GameScreen implements Screen {
         batch = new SpriteBatch();
         // AssetManager를 통해 에셋 로드
         carTexture = Main.assetManager.get("pitstop_car_3.png", Texture.class);
-        backgroundTexture = Main.assetManager.get("new_map2.png", Texture.class);
+        backgroundTexture = Main.assetManager.get("sukit.png", Texture.class);
 
         world = new World(new Vector2(0, 0), true);
         box2DDebugRenderer = new Box2DDebugRenderer();
