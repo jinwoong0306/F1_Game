@@ -7,6 +7,15 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
+import com.mygame.f1.screens.MainMenuScreen;
+import com.mygame.f1.ui.SkinFactory;
 import com.badlogic.gdx.maps.objects.RectangleMapObject;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
@@ -20,6 +29,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
 public class GameScreen implements Screen {
+    private final Main gameRef;
 
     // --- 재사용 변수 (성능 최적화) ---
     private final Vector2 v2_tmp1 = new Vector2();
@@ -48,6 +58,11 @@ public class GameScreen implements Screen {
     private Texture carTexture;
     private Texture backgroundTexture;
 
+    // --- Pause UI ---
+    private boolean paused = false;
+    private Stage pauseStage;
+    private Skin pauseSkin;
+
     // --- 물리 파라미터 ---
     private float maxForwardSpeed = 3.5f;
     private float maxReverseSpeed = 1.5f;
@@ -74,8 +89,11 @@ public class GameScreen implements Screen {
 
     // --- 상수 ---
     public static final float PPM = 100;
-    private static final boolean USE_TILED_MAP = true;
+    private static final boolean USE_TILED_MAP = false;
 
+    public GameScreen() { this(null); }
+
+    public GameScreen(Main game) { this.gameRef = game; }
 
     @Override
     public void show() {
@@ -86,7 +104,7 @@ public class GameScreen implements Screen {
         batch = new SpriteBatch();
         // AssetManager를 통해 에셋 로드
         carTexture = Main.assetManager.get("pitstop_car_3.png", Texture.class);
-        backgroundTexture = Main.assetManager.get("sukit.png", Texture.class);
+        backgroundTexture = Main.assetManager.get("Track_t2.png", Texture.class);
 
         world = new World(new Vector2(0, 0), true);
         box2DDebugRenderer = new Box2DDebugRenderer();
@@ -130,6 +148,10 @@ public class GameScreen implements Screen {
         createScreenBoundaryWalls();
 
         initialAngle = playerCar.getAngle();
+
+        // pause UI init
+        pauseSkin = SkinFactory.createDefaultSkin();
+        pauseStage = new Stage(new ScreenViewport());
     }
 
     private void createWall(float x, float y, float width, float height) {
@@ -231,6 +253,9 @@ public class GameScreen implements Screen {
     }
 
     private void handleInput(float delta) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            togglePause();
+        }
         if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
             playerCar.setLinearDamping(brakingLinearDamping);
         } else if (!isColliding) {
@@ -334,10 +359,20 @@ public class GameScreen implements Screen {
 
     @Override
     public void render(float delta) {
-        update(delta);
+        if (paused && Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            togglePause();
+        }
+        if (!paused) {
+            update(delta);
+        }
 
         Gdx.gl.glClearColor(0.1f, 0.1f, 0.1f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+        if (USE_TILED_MAP && mapRenderer != null) {
+            mapRenderer.setView(camera);
+            mapRenderer.render();
+        }
 
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
@@ -361,11 +396,16 @@ public class GameScreen implements Screen {
         batch.end();
 
         box2DDebugRenderer.render(world, camera.combined);
+
+        if (paused) {
+            drawPauseOverlay();
+        }
     }
 
     @Override
     public void resize(int width, int height) {
         viewport.update(width, height, true);
+        if (pauseStage != null) pauseStage.getViewport().update(width, height, true);
     }
 
     @Override
@@ -375,8 +415,61 @@ public class GameScreen implements Screen {
         if (map != null) map.dispose();
         if (mapRenderer != null) mapRenderer.dispose();
         batch.dispose();
-        carTexture.dispose();
-        backgroundTexture.dispose();
+        if (pauseStage != null) pauseStage.dispose();
+        if (pauseSkin != null) pauseSkin.dispose();
+    }
+
+    private void togglePause() {
+        paused = !paused;
+        if (paused) {
+            Gdx.input.setInputProcessor(pauseStage);
+            buildPauseUI();
+        } else {
+            Gdx.input.setInputProcessor(null);
+            if (pauseStage != null) pauseStage.clear();
+        }
+    }
+
+    private void buildPauseUI() {
+        pauseStage.clear();
+        Table root = new Table();
+        root.setFillParent(true);
+        root.setBackground(pauseSkin.getDrawable("bg"));
+        pauseStage.addActor(root);
+
+        Table panel = new Table();
+        panel.setBackground(pauseSkin.getDrawable("panel"));
+        panel.defaults().pad(8).width(300).height(44);
+
+        Label title = new Label("Pause", pauseSkin, "title");
+        TextButton resume = new TextButton("Resume", pauseSkin);
+        TextButton mainMenu = new TextButton("Main Menu", pauseSkin);
+        TextButton exit = new TextButton("Exit", pauseSkin);
+
+        resume.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener(){
+            @Override public void clicked(InputEvent event, float x, float y){ togglePause(); }
+        });
+        mainMenu.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener(){
+            @Override public void clicked(InputEvent event, float x, float y){
+                if (gameRef != null) gameRef.setScreen(new MainMenuScreen(gameRef)); else Gdx.app.exit();
+            }
+        });
+        exit.addListener(new com.badlogic.gdx.scenes.scene2d.utils.ClickListener(){
+            @Override public void clicked(InputEvent event, float x, float y){ Gdx.app.exit(); }
+        });
+
+        panel.add(title).row();
+        panel.add(resume).row();
+        panel.add(mainMenu).row();
+        panel.add(exit).row();
+        root.add(panel).center();
+    }
+
+    private void drawPauseOverlay() {
+        if (pauseStage != null) {
+            pauseStage.act(Gdx.graphics.getDeltaTime());
+            pauseStage.draw();
+        }
     }
 
     @Override

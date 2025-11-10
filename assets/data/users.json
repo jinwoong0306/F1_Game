@@ -1,0 +1,14 @@
+[
+{
+	class: com.mygame.f1.data.UserStore$Record
+	username: asd
+	salt: B6CJIJc7dAmnZSisbCdugQ==
+	passwordHash: 2BdTcfcDYhb1RepSltnMai3D+1h++jrdZpnqKuxf0JQ=
+}
+{
+	class: com.mygame.f1.data.UserStore$Record
+	username: gnho
+	salt: 0VHGs7jPfaT9FX9/MpA64Q==
+	passwordHash: "/HX0Trms6BnwibgME9UVKENOI7NvcSIcPckihxwuwx0="
+}
+]
