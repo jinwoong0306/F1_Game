@@ -260,6 +260,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ???? ???? ? ???, ??, ?, HUD? ???.
+    // ???? ???? ? ???, ??, ?, HUD? ???.
     @Override
     public void show() {
         long t0 = System.nanoTime();
@@ -459,6 +461,8 @@ public class GameScreen implements Screen {
         Gdx.app.log("PERF", String.format("GameScreen.show total: %.2f ms", (System.nanoTime() - t0) / 1_000_000f));
     }
 
+    // Tiled ??? ???? ?? Box2D ?? ? ??? ??.
+    // Tiled ??? ???? ?? Box2D ?? ? ??? ??.
     private void createWall(float x, float y, float width, float height) {
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.StaticBody;
@@ -477,6 +481,8 @@ public class GameScreen implements Screen {
         shape.dispose();
     }
 
+    // ? ?? ??? ??? ?? ?? ??? ?? ??? ??.
+    // ? ?? ??? ??? ?? ?? ??? ?? ??? ??.
     private void createScreenBoundaryWalls() {
         float worldWidth = mapWorldWidth > 0 ? mapWorldWidth : viewport.getWorldWidth();
         float worldHeight = mapWorldHeight > 0 ? mapWorldHeight : viewport.getWorldHeight();
@@ -490,6 +496,8 @@ public class GameScreen implements Screen {
         createWall(worldWidth - wallThickness, 0f, wallThickness, worldHeight);
     }
 
+    // ???? ?? ??? ???? ?? ?? ? ?? ??? ??.
+    // ???? ?? ??? ???? ?? ?? ? ?? ??? ??.
     private void createPlayerCar() {
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
@@ -540,6 +548,8 @@ public class GameScreen implements Screen {
         return new Vector2(fallbackX, fallbackY);
     }
 
+    // ? ??? ?? ??? ???? ??, ???, HUD ??? ????.
+    // ? ??? ?? ??? ???? ??, ???, HUD ??? ????.
     public void update(float delta) {
         float frameTime = Math.min(delta, 0.25f);
         accumulator += frameTime;
@@ -599,6 +609,8 @@ public class GameScreen implements Screen {
         updateMapRendererView();
     }
 
+    // 레이스 스타트~~~~ 잘 작동되어야 할텐데 말이지 ~~~ 차량아 출발해라 제발~~~ 고고씽~~!!
+    // ??/????/?? ?? ? ??? ??? ?? ???? ??.
     private void handleInput(float delta) {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             togglePause();
@@ -662,6 +674,10 @@ public class GameScreen implements Screen {
         }
     }
 
+    // 출발 하기 전에 신호등이 깜빢 깜빢 꺼졋다 켜져야해 신호등이 있었으면 참 좋겟네 나는 신호등을 만들고싶어
+    //신호등은 어떻게 만들면 좋을까나~~~ 신호등을 만들어보자자이 ~ 
+    //영차영차 신호등 영차영차
+    // ??? ??? ?? ?? ??? ??? ??.
     private void updateSteering(float delta) {
         // 신호등이 꺼지기 전까지 방향 전환 차단
         if (!startLightsDone) {
@@ -696,6 +712,8 @@ public class GameScreen implements Screen {
         playerCar.applyAngularImpulse(impulse, true);
     }
 
+    //왜 작동을 안할까 얼른 출발해라잉~~~ 좋은 말할때 시작 고고ㅗ고고고고고고고고고고고고곡
+    // ??/??? ??? ?? ?? ??? ??? ??? ??.
     private void updateFriction() {
         boolean isSteering = Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.D);
         float gripFactor = isSteering ? 0.9f : 1.0f;
@@ -713,6 +731,9 @@ public class GameScreen implements Screen {
         }
     }
 
+    // 차량 속도에 제한을 두자 어떨땐ㄴ 빠르게 어떤 경우에는 느려지게 내구도 타이어 잔디와 부딪혓을때 얼마나 느려지게 할건지
+    // 정해두고 이를 적용시켜보자~~
+    // ??/?? ??? ?? ??? ???.
     private void limitSpeed() {
         v2_tmp1.set(0, 1);
         Vector2 forwardNormal = playerCar.getWorldVector(v2_tmp1);
@@ -745,22 +766,20 @@ public class GameScreen implements Screen {
         }
     }
 
-    // 재사용 벡터 (GC 방지)
-    private static final Vector2 LATERAL_DIR = new Vector2(1, 0);
-    private static final Vector2 FORWARD_DIR = new Vector2(0, 1);
-
     private Vector2 getLateralVelocity() {
-        v2_tmp1.set(playerCar.getWorldVector(LATERAL_DIR.set(1, 0)));
+        v2_tmp1.set(playerCar.getWorldVector(new Vector2(1, 0)));
         float rightSpeed = playerCar.getLinearVelocity().dot(v2_tmp1);
         return v2_tmp1.scl(rightSpeed);
     }
 
     private Vector2 getForwardVelocity() {
-        v2_tmp2.set(playerCar.getWorldVector(FORWARD_DIR.set(0, 1)));
+        v2_tmp2.set(playerCar.getWorldVector(new Vector2(0, 1)));
         float forwardSpeed = playerCar.getLinearVelocity().dot(v2_tmp2);
         return v2_tmp2.scl(forwardSpeed);
     }
 
+    // 화면이 잘보였으면 좋겟당~~!! 후후후후후후!
+    // ?? ?? ? ???? ? ?? ?? ? ?? ??? ? ???? ???.
     @Override
     public void render(float delta) {
         if (paused && Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
@@ -826,6 +845,8 @@ public class GameScreen implements Screen {
         drawHud(delta);
     }
 
+    // 미니맵이 잘 작동 되게 하자~~!!
+    // ?? ??? ??? ?? ??? ??? ?? ??.
     private void updateMapRendererView() {
         if (!USE_TILED_MAP || mapRenderer == null || camera == null) return;
 
@@ -840,6 +861,8 @@ public class GameScreen implements Screen {
             renderHeight);
     }
 
+    // 화면 크기 변경 시 뷰포트 및 HUD 카메라 업데이트.
+    // ?? ?? ?? ? ??/???/HUD ???? ???.
     @Override
     public void resize(int width, int height) {
         viewport.update(width, height, true);
@@ -850,6 +873,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // 안쓸건 미리미리 없애자잉~~!!
+    // ??? ?? ? ??, ???, ??/??? ? ??? ??.
     @Override
     public void dispose() {
         if (stateSendTask != null) stateSendTask.cancel();
@@ -878,6 +903,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // hud!!!
+    // ??, ???, ???, ?? UI ? HUD ??? ?? ???.
     private void drawHud(float delta) {
         if (hudBatch == null || hudCamera == null) return;
         // setToOrtho()는 resize()에서만 호출 (성능 최적화)
@@ -897,6 +924,8 @@ public class GameScreen implements Screen {
         hudBatch.end();
     }
 
+    // 와우 와우 레이스 스타트`
+    // ??? ?? ??? ????? ????? ???? ??.
     private void drawRaceStatusHud() {
         if (tyreSelectSlotRegion == null || hudLapFont == null || hudCamera == null) return;
         float padding = 16f;
@@ -940,6 +969,8 @@ public class GameScreen implements Screen {
         hudLapFont.getData().setScale(1.0f); // 스케일 복원
     }
 
+    // 속도계
+    // ?? ???? ??, ??? HUD? ???.
     private void drawSpeedHud() {
         if (speedHudRegion == null || hudCamera == null || hudSpeedFont == null || playerCar == null) return;
         float padding = 16f;
@@ -990,6 +1021,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // 차량 내구도 hub 표시
+    // ?? ??? ?? ?? ??? ???.
     private void drawDurabilityHud() {
         if (durabilityBgRegion == null || durabilityFgRegion == null || hudCamera == null) return;
         float padding = 16f;
@@ -1044,6 +1077,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ???? ???? ??? HUD? ??.
+    // ??? ???? ???? ??? HUD? ??.
     private void drawTireHud() {
         if (tireBgRegion == null || tireFgRegion == null || hudCamera == null) return;
         float padding = 16f;
@@ -1097,6 +1132,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ?? ???? ???? ?? ??? ??.
+    // ?? ???? ???? ?? ??? ??.
     private void drawPitMinigameHud() {
         if (gameState != GameState.PIT_MINIGAME) return;
         if (pitPanelRegion == null || pitBarRegion == null || hudCamera == null) return;
@@ -1163,6 +1200,8 @@ public class GameScreen implements Screen {
         font.draw(hudBatch, instructionText, instructionX, instructionY);
     }
 
+    // ?? ?, ???/?? ? ??? ???.
+    // ?? ?, ???/?? ? ??? ???.
     private void drawLapTimeHud() {
         if (lapBestBgRegion == null || lapLastBgRegion == null || hudCamera == null || hudFont == null) return;
         float boxW = 200f;
@@ -1214,6 +1253,8 @@ public class GameScreen implements Screen {
      * 멀티플레이어 레이스 종료 카운트다운 표시
      * 1등 완주 시 화면 중앙에 큰 숫자로 표시
      */
+    // ????? ?? ?? ?????? HUD? ??.
+    // ????? ?? ?? ?????? HUD? ??.
     private void drawRaceFinishCountdown() {
         if (raceFinishCountdown < 0 || hudCamera == null || hudLapFont == null) return;
 
@@ -1251,6 +1292,8 @@ public class GameScreen implements Screen {
      * 레이스 종료 시 결과 화면 표시
      * 반투명 검은 배경 위에 기록과 버튼 표시
      */
+    // ??? ?? ?? ??? ???.
+    // ??? ?? ?? ??? ???.
     private void drawRaceResultHud() {
         if (gameState != GameState.FINISHED || hudCamera == null || hudFont == null) return;
 
@@ -1348,6 +1391,8 @@ public class GameScreen implements Screen {
         return PLAYER_COLORS[playerId % PLAYER_COLORS.length];
     }
 
+    // ???? ?? ???? ?? ??? ??.
+    // ???? ?? ???? ?? ??? ??.
     private void drawMinimapHud() {
         if (minimapFrameTexture == null || hudCamera == null) return;
 
@@ -1380,12 +1425,39 @@ public class GameScreen implements Screen {
         float offsetX = (mapAreaW - renderW) / 2f;
         float offsetY = (mapAreaH - renderH) / 2f;
 
-        // 미니맵 배경 (간단한 어두운 배경 - Tiled 맵 렌더링 제거로 성능 향상)
-        // 기존: 매 프레임 Tiled 맵 전체를 미니맵에 다시 렌더링 (매우 비효율적)
-        // 개선: 배경 텍스처만 사용하거나 생략 (플레이어 위치만 표시)
-        if (minimapRegion != null) {
-            hudBatch.draw(minimapRegion, mapAreaX + offsetX, mapAreaY + offsetY, renderW, renderH);
+        // HUD 배치 종료하고 Tiled 맵 렌더링
+        hudBatch.end();
+
+        // Tiled 맵을 미니맵 영역에 렌더링
+        if (mapRenderer != null && map != null && mapW > 0 && mapH > 0) {
+            // 미니맵용 카메라 재사용 (GC 방지)
+            minimapCamera.setToOrtho(false, mapW, mapH);
+            minimapCamera.position.set(mapW / 2f, mapH / 2f, 0);
+            minimapCamera.zoom = 1.0f; // 전체 맵이 보이도록
+            minimapCamera.update();
+
+            // 뷰포트 설정 (미니맵 영역만 렌더링하도록 제한)
+            Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+            int scissorX = (int)(mapAreaX + offsetX);
+            int scissorY = (int)(mapAreaY + offsetY);
+            int scissorW = (int)renderW;
+            int scissorH = (int)renderH;
+            Gdx.gl.glScissor(scissorX, scissorY, scissorW, scissorH);
+
+            // 뷰포트를 미니맵 영역으로 설정
+            Gdx.gl.glViewport(scissorX, scissorY, scissorW, scissorH);
+
+            // Tiled 맵 렌더링 (전체 맵)
+            mapRenderer.setView(minimapCamera);
+            mapRenderer.render();
+
+            // 뷰포트를 원래대로 복원
+            Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
         }
+
+        // HUD 배치 재개
+        hudBatch.begin();
 
         // 플레이어 위치 표시
         if (minimapCarTexture != null && playerCar != null) {
@@ -1424,6 +1496,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ?? ??? GO ???? ??.
+    // ??? ?? ??? GO ???? ??.
     private void drawStartLightsHud() {
         if (startLightsDone || hudCamera == null) return;
         if (startLightOnRegion == null || startLightOffRegion == null) return;
@@ -1458,6 +1532,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ????? ???? ???? ??? ??.
+    // ??? ????? ???? ???? ??? ??.
     private void updateStartLights(float delta) {
         if (startLightsDone) return;
         if (startCountdown > 0f) {
@@ -1484,6 +1560,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??/??? ?? ?? ???? ??? ??? ??.
+    // ??/??? ?? ?? ???? ??? ??? ??.
     private void updateDurability(float delta) {
         if (gameState != GameState.NORMAL) return;
         if (playerCar == null) return;
@@ -1498,6 +1576,8 @@ public class GameScreen implements Screen {
         return 100f / 130f; // medium 기본 약 130초
     }
 
+    // ?? ???????????? ???? ?? ?? ??.
+    // ?? ???????????? ???? ?? ?? ??.
     private void handlePitState(float delta) {
         if (gameState == GameState.NORMAL) {
             if (pitEntryRect != null && pitEntryRect.contains(playerCar.getPosition())) {
@@ -1573,10 +1653,10 @@ public class GameScreen implements Screen {
         } else if (gameState == GameState.PIT_EXITING) {
             if (pitExitPos != null) {
                 Vector2 pos = playerCar.getPosition();
-                v2_tmp1.set(pitExitPos).sub(pos); // 재사용 벡터 사용 (GC 방지)
-                if (v2_tmp1.len() > 0.01f) {
-                    v2_tmp1.nor().scl(0.5f);
-                    playerCar.setLinearVelocity(v2_tmp1);
+                Vector2 dir = new Vector2(pitExitPos).sub(pos);
+                if (dir.len() > 0.01f) {
+                    dir.nor().scl(0.5f);
+                    playerCar.setLinearVelocity(dir);
                 } else {
                     playerCar.setTransform(pitExitPos, pitExitAngleDeg * MathUtils.degreesToRadians);
                     gameState = GameState.NORMAL;
@@ -1592,6 +1672,8 @@ public class GameScreen implements Screen {
         return false;
     }
 
+    // ??? ????? ?? ??/??? ??? ??.
+    // ??? ????? ?? ??/??? ??? ??.
     private void setTireCompound(String comp) {
         if ("soft".equalsIgnoreCase(comp) && tireCompoundSoftRegion != null) {
             tireCompoundRegion = tireCompoundSoftRegion;
@@ -1612,6 +1694,8 @@ public class GameScreen implements Screen {
         pitSelectedCompound = comp;
     }
 
+    // HUD? ??? ??, ????, ???? ??.
+    // HUD? ??? ??, ????, ???? ??.
     private void initHudResources() {
         hudFont = loadFont("fonts/capitolcity.ttf", 18);
         hudSmallFont = loadFont("fonts/capitolcity.ttf", 14);
@@ -1714,6 +1798,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ????? ???? dispose.
+    // ??? ????? ???? dispose.
     private void disposeTex(Texture... texes) {
         if (texes == null) return;
         for (Texture t : texes) {
@@ -1721,6 +1807,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ?? ???? ??.
+    // ??? ?? ???? ??.
     private void disposeFont(BitmapFont... fonts) {
         if (fonts == null) return;
         for (BitmapFont f : fonts) {
@@ -1728,6 +1816,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ESC? UI ???? ????? ??.
+    // ESC? UI ???? ????? ??.
     private void togglePause() {
         paused = !paused;
         if (paused) {
@@ -1739,6 +1829,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ???? ????? ??? ??.
+    // ???? ????? ??? ??.
     private void buildPauseUI() {
         pauseStage.clear();
         Table root = new Table();
@@ -1774,6 +1866,8 @@ public class GameScreen implements Screen {
         root.add(panel).center();
     }
 
+    // ???? ??? ? ??? ???? ??? ???.
+    // ???? ??? ? ??? ???? ??? ???.
     private void drawPauseOverlay() {
         if (pauseStage != null) {
             pauseStage.act(Gdx.graphics.getDeltaTime());
@@ -1781,15 +1875,23 @@ public class GameScreen implements Screen {
         }
     }
 
+    // Screen ????? ????: ?? ?? ??.
+    // Screen ????? ????: ?? ?? ??.
     @Override
     public void hide() {}
 
+    // ? ???? ??(?? ?? ?? ??).
+    // ? ???? ??(?? ?? ?? ??).
     @Override
     public void pause() {}
 
+    // ? ?? ??(?? ?? ?? ??).
+    // ? ?? ??(?? ?? ?? ??).
     @Override
     public void resume() {}
 
+    // ? ?? ??? ??? ????? ??.
+    // ? ?? ??? ??? ????? ??.
     private void sendState() {
         if (lobbyClient == null || roomId == null || playerCar == null) return;
         Vector2 pos = playerCar.getPosition();
@@ -1805,6 +1907,8 @@ public class GameScreen implements Screen {
         lobbyClient.sendPlayerState(roomId, ps);
     }
 
+    // ???? ??? ?? ??? ?? ?? ??? ??.
+    // ???? ??? ?? ??? ?? ?? ??? ??.
     private void handleGameState(Packets.GameStatePacket gs) {
         if (gs == null || gs.playerStates == null) return;
         long currentTime = System.currentTimeMillis();
@@ -1878,6 +1982,8 @@ public class GameScreen implements Screen {
         return null;
     }
 
+    // Tiled ??? ?? ??/??/?? ??? ?? ??? ??.
+    // Tiled ??? ?? ??/??/?? ??? ?? ??? ??.
     private void parsePitLayer() {
         pitEntryRect = pitServiceRect = pitExitRect = null;
         if (map == null) {
@@ -1923,6 +2029,8 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ?? checkpoint ???? ?? ?? ?? ????? ??? ??.
+    // ?? checkpoint ???? ?? ?? ?? ????? ??? ??.
     private void loadCheckpointsFromMap() {
         checkpoints.clear();
         checkpointsInside.clear();
@@ -1990,6 +2098,8 @@ public class GameScreen implements Screen {
         Gdx.app.log("GameScreen", String.format("Loaded %d checkpoints (max index: %d)", checkpoints.size(), totalCheckpoints));
     }
 
+    // ????? ??? ??? ? ??? ??? ??.
+    // ????? ??? ??? ? ??? ??? ??.
     private void loadStartLineFromMap() {
         startLineBounds = null;
         if (map == null) {
@@ -2020,6 +2130,8 @@ public class GameScreen implements Screen {
      * Grass 영역을 Box2D 정적 바디(센서)로 로드.
      * 모든 Grass 폴리곤을 하나의 정적 Body로 통합하여 효율성 향상.
      */
+    // Grass ???? Box2D ??? ??? ?? ??? ??.
+    // Grass ???? Box2D ??? ??? ?? ??? ??.
     private void loadGrassZonesFromMap() {
         if (map == null) {
             Gdx.app.log("GameScreen", "WARNING: map is null in loadGrassZonesFromMap");
@@ -2141,6 +2253,8 @@ public class GameScreen implements Screen {
         return 1;
     }
 
+    // ?? ??? ????? ?? ??? ? ??? ??.
+    // ?? ??? ????? ?? ??? ? ??? ??.
     private void updateLapAndCheckpoints(float delta) {
         if (playerCar == null) return;
         lapTimeSeconds += delta;
@@ -2198,6 +2312,8 @@ public class GameScreen implements Screen {
     // 외삽 최대 시간 (이 시간 이상 지나면 외삽 중지)
     private static final float MAX_EXTRAPOLATION_TIME = 0.15f; // 150ms
 
+    // ????? ?? ?? ??? ??/??? ???? ??.
+    // ????? ?? ?? ??? ??/??? ???? ??.
     private void updateRemoteCars(float delta) {
         for (IntMap.Entry<RemoteCar> e : remoteCars) {
             RemoteCar rc = e.value;
@@ -2254,6 +2370,8 @@ public class GameScreen implements Screen {
      * 레이스 완료 시 호출되는 메서드
      * 싱글플레이와 멀티플레이를 분기 처리
      */
+    // ??? ?? ? ?? ?? ? ??? ???? ??.
+    // ??? ?? ? ?? ?? ? ??? ???? ??.
     private void onRaceFinished() {
         Gdx.app.log("GameScreen", String.format("=== RACE FINISHED ==="));
         Gdx.app.log("GameScreen", String.format("Total Laps: %d", totalLaps));
@@ -2278,6 +2396,8 @@ public class GameScreen implements Screen {
     /**
      * 싱글플레이 레이스 완료 처리
      */
+    // ????? ?? ??? ??.
+    // ????? ?? ??? ??.
     private void onSingleplayerRaceFinished() {
         Gdx.app.log("GameScreen", "Singleplayer race finished - showing results");
         gameState = GameState.FINISHED;
@@ -2287,6 +2407,8 @@ public class GameScreen implements Screen {
      * 멀티플레이 레이스 완료 처리
      * 서버에 완주 정보를 전송하고 카운트다운 대기
      */
+    // ????? ??? ??? ???? ?? ??? ??.
+    // ????? ??? ??? ???? ?? ??? ??.
     private void onMultiplayerRaceFinished() {
         Gdx.app.log("GameScreen", "Multiplayer race finished - sending results to server");
 
@@ -2308,6 +2430,8 @@ public class GameScreen implements Screen {
      * 레이스 재시작
      * 모든 상태를 초기화하고 처음부터 다시 시작
      */
+    // ?/?????/?? ??? ???? ???.
+    // ?/?????/?? ??? ???? ???.
     private void restartRace() {
         // 랩 관련 상태 초기화
         currentLap = 0; // 완료된 랩 수 초기화
@@ -2347,6 +2471,8 @@ public class GameScreen implements Screen {
     /**
      * 메인 메뉴로 돌아가기
      */
+    // ?? ??? ???? ?? ??? ????.
+    // ?? ??? ???? ?? ??? ????.
     private void exitToMenu() {
         Gdx.app.log("GameScreen", "Exiting to main menu");
         gameRef.setScreen(new com.mygame.f1.screens.MainMenuScreen(gameRef));
