@@ -132,6 +132,7 @@ public class GameScreen implements Screen {
     private boolean pitMiniGameLocked = false;
     private String lastPitResult = "";
     // 내구도 연동
+    private float vehicleDurability = 100f; // 차량 내구도
     private float tireDurability = 100f;
     private float tireWearRate = 0.15f; // 기본 마모율 (초당 15%/100초 소진 기준)
     private int currentLap = 0;
@@ -145,6 +146,11 @@ public class GameScreen implements Screen {
     private int lastCheckpointIndex = 0;
     private Set<Integer> checkpointsInside = new HashSet<>();
     private boolean insideStartLine = false;
+
+    // --- Grass (오프트랙) 영역 ---
+    private List<Rectangle> grassZones = new ArrayList<>();
+    private boolean isOnGrass = false;
+    private float grassSpeedPenalty = 0.6f; // 60% 속도 감소
 
     // --- Pause UI ---
     private boolean paused = false;
@@ -253,7 +259,19 @@ public class GameScreen implements Screen {
                 if (contact.getFixtureA().getBody() == playerCar || contact.getFixtureB().getBody() == playerCar) {
                     isColliding = true;
                     collisionTimer = collisionDuration;
+
+                    // 충돌 강도 계산 (속도 기반)
                     Vector2 velocity = playerCar.getLinearVelocity();
+                    float collisionSpeed = velocity.len() * PPM; // m/s를 속도 단위로 변환
+
+                    // 속도에 비례한 내구도 감소 (20 km/h 이상일 때만)
+                    if (collisionSpeed > 20f) {
+                        float damage = (collisionSpeed - 20f) * 0.5f; // 속도가 빠를수록 큰 데미지
+                        vehicleDurability = MathUtils.clamp(vehicleDurability - damage, 0f, 100f);
+                        Gdx.app.log("GameScreen", String.format("Collision damage: %.1f (speed: %.1f km/h, durability: %.1f%%)",
+                            damage, collisionSpeed, vehicleDurability));
+                    }
+
                     playerCar.setLinearVelocity(velocity.scl(0.4f));
                     playerCar.setAngularVelocity(playerCar.getAngularVelocity() * 0.3f);
                 }
@@ -312,6 +330,7 @@ public class GameScreen implements Screen {
             parsePitLayer();
             loadCheckpointsFromMap();
             loadStartLineFromMap();
+            loadGrassZonesFromMap();
             Gdx.app.log("PERF", String.format("Map load+parse: %.2f ms", (System.nanoTime() - mapStart) / 1_000_000f));
         }
 
@@ -564,10 +583,18 @@ public class GameScreen implements Screen {
         float forwardSpeed = playerCar.getLinearVelocity().dot(forwardNormal);
         float speed = playerCar.getLinearVelocity().len();
 
-        if (forwardSpeed > 0 && speed > maxForwardSpeed) {
-            playerCar.setLinearVelocity(playerCar.getLinearVelocity().scl(maxForwardSpeed / speed));
-        } else if (forwardSpeed < 0 && speed > maxReverseSpeed) {
-            playerCar.setLinearVelocity(playerCar.getLinearVelocity().scl(maxReverseSpeed / speed));
+        // Grass 페널티 적용
+        float effectiveMaxForward = maxForwardSpeed;
+        float effectiveMaxReverse = maxReverseSpeed;
+        if (isOnGrass) {
+            effectiveMaxForward *= grassSpeedPenalty;
+            effectiveMaxReverse *= grassSpeedPenalty;
+        }
+
+        if (forwardSpeed > 0 && speed > effectiveMaxForward) {
+            playerCar.setLinearVelocity(playerCar.getLinearVelocity().scl(effectiveMaxForward / speed));
+        } else if (forwardSpeed < 0 && speed > effectiveMaxReverse) {
+            playerCar.setLinearVelocity(playerCar.getLinearVelocity().scl(effectiveMaxReverse / speed));
         }
     }
 
@@ -738,8 +765,8 @@ public class GameScreen implements Screen {
         float y = padding;
         float x = hudCamera.viewportWidth - bgW - padding;
         hudBatch.draw(durabilityBgRegion, x, y);
-        // 내구도 비율에 따라 FG 폭 스케일
-        float ratio = MathUtils.clamp(tireDurability / 100f, 0f, 1f);
+        // 차량 내구도 비율에 따라 FG 폭 스케일
+        float ratio = MathUtils.clamp(vehicleDurability / 100f, 0f, 1f);
         if (durabilityFgRegion != null) {
             float fgW = durabilityFgRegion.getRegionWidth() * ratio;
             float fgH = durabilityFgRegion.getRegionHeight();
@@ -749,7 +776,7 @@ public class GameScreen implements Screen {
             hudBatch.draw(durabilityLabelRegion, x, y + bgH + 8f);
         }
         if (hudSmallFont != null) {
-            String val = String.format("%.0f%%", MathUtils.clamp(tireDurability, 0f, 100f));
+            String val = String.format("%.0f%%", MathUtils.clamp(vehicleDurability, 0f, 100f));
             layout.setText(hudSmallFont, val);
             hudSmallFont.draw(hudBatch, val, x + 12, y + bgH - 8);
         }
@@ -1286,6 +1313,21 @@ public class GameScreen implements Screen {
         }
     }
 
+    private void loadGrassZonesFromMap() {
+        grassZones.clear();
+        if (map == null) return;
+        MapLayer grassLayer = map.getLayers().get("Grass");
+        if (grassLayer == null) return;
+        for (MapObject obj : grassLayer.getObjects()) {
+            if (obj instanceof RectangleMapObject rectObj) {
+                Rectangle r = rectObj.getRectangle();
+                Rectangle rectWorld = new Rectangle(r.x / PPM, r.y / PPM, r.width / PPM, r.height / PPM);
+                grassZones.add(rectWorld);
+            }
+        }
+        Gdx.app.log("GameScreen", "Loaded " + grassZones.size() + " grass zones");
+    }
+
     private void updateLapAndCheckpoints(float delta) {
         if (playerCar == null) return;
         lapTimeSeconds += delta;
@@ -1318,6 +1360,31 @@ public class GameScreen implements Screen {
             }
         }
         if (!inStart && insideStartLine) insideStartLine = false;
+
+        // Grass 영역 체크
+        updateGrassZoneCheck();
+    }
+
+    private void updateGrassZoneCheck() {
+        if (playerCar == null || grassZones.isEmpty()) {
+            isOnGrass = false;
+            return;
+        }
+        Vector2 carPos = playerCar.getPosition();
+        boolean wasOnGrass = isOnGrass;
+        isOnGrass = false;
+        for (Rectangle grassZone : grassZones) {
+            if (grassZone.contains(carPos.x, carPos.y)) {
+                isOnGrass = true;
+                break;
+            }
+        }
+        // Grass 진입/퇴장 로그 (디버깅용)
+        if (isOnGrass && !wasOnGrass) {
+            Gdx.app.log("GameScreen", "Vehicle entered grass zone - speed penalty applied");
+        } else if (!isOnGrass && wasOnGrass) {
+            Gdx.app.log("GameScreen", "Vehicle left grass zone");
+        }
     }
 
     private void updateRemoteCars(float delta) {
