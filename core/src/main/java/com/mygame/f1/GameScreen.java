@@ -101,6 +101,7 @@ public class GameScreen implements Screen {
     private TextureRegion lapBestBgRegion, lapLastBgRegion;
     private Texture minimapFrameTexture, minimapRegion, minimapCarTexture;
     private TextureRegion durabilityLabelRegion, durabilityBgRegion, durabilityFgRegion;
+    private Texture durabilityLabelTexture, tireLabelTexture; // Label 텍스처 (개별 로드)
     private Texture raceStatusTexture;
     private TextureRegion speedHudRegion, tireLabelRegion, tireBgRegion, tireFgRegion, tireCompoundRegion;
     private TextureRegion pitPanelRegion, pitBarRegion, pitPointerRegion, pitTyreSelectRegion;
@@ -671,7 +672,8 @@ public class GameScreen implements Screen {
         disposeFont(hudFont, hudSmallFont, hudSpeedFont);
         // TextureRegion은 dispose 불필요 (TextureAtlas가 관리)
         // Atlas에 없는 개별 텍스처만 dispose
-        disposeTex(minimapFrameTexture, minimapRegion, minimapCarTexture, raceStatusTexture);
+        disposeTex(minimapFrameTexture, minimapRegion, minimapCarTexture, raceStatusTexture,
+                   durabilityLabelTexture, tireLabelTexture);
         if (lobbyClient != null) lobbyClient.onGameState(null);
         for (IntMap.Entry<RemoteCar> e : remoteCars) {
             if (e.value.textureOwned && e.value.texture != null) e.value.texture.dispose();
@@ -1039,11 +1041,9 @@ public class GameScreen implements Screen {
         if (gameAtlas != null) {
             lapBestBgRegion = gameAtlas.findRegion("lap_time_bg_best");
             lapLastBgRegion = gameAtlas.findRegion("lap_time_bg_last");
-            durabilityLabelRegion = gameAtlas.findRegion("vehicle_durability_label");
             durabilityBgRegion = gameAtlas.findRegion("vehicle_durability_bg");
             durabilityFgRegion = gameAtlas.findRegion("vehicle_durability_fg");
             speedHudRegion = gameAtlas.findRegion("speed_hud_bg");
-            tireLabelRegion = gameAtlas.findRegion("tire_durability_label");
             tireBgRegion = gameAtlas.findRegion("tire_durability_bg");
             tireFgRegion = gameAtlas.findRegion("tire_durability_fg");
             tireCompoundSoftRegion = gameAtlas.findRegion("tire_durability_compound_soft");
@@ -1059,6 +1059,12 @@ public class GameScreen implements Screen {
         }
 
         // Atlas에 없는 텍스처들 (개별 로드)
+        durabilityLabelTexture = loadTextureSafe("ui/durability/vehicle_durability_label.png");
+        if (durabilityLabelTexture != null) durabilityLabelRegion = new TextureRegion(durabilityLabelTexture);
+
+        tireLabelTexture = loadTextureSafe("ui/tire/tire_durability_label.png");
+        if (tireLabelTexture != null) tireLabelRegion = new TextureRegion(tireLabelTexture);
+
         minimapFrameTexture = loadTextureSafe("hud/minimap_frame_bg.png");
         minimapRegion = loadTextureSafe("hud/minimap.png");
         raceStatusTexture = loadTextureSafe("hud/race_status_bg.png");
