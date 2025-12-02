@@ -65,7 +65,7 @@
 
 ---
 
-## Phase 2: HUD 시스템 복원 🔄
+## Phase 2: HUD 시스템 복원 ✅
 
 **목표**: docs/new/GameScreen.txt의 작동하는 HUD 메서드들을 현재 GameScreen.java로 이식
 
@@ -77,62 +77,63 @@
 ### 체크리스트
 
 #### 2.1 랩타임 HUD
-- [ ] `drawLapTimeHud()` 메서드 추가
-- [ ] 베스트 랩타임 표시 (lap_time_bg_best 사용)
-- [ ] 최근 랩타임 표시 (lap_time_bg_last 사용)
-- [ ] 현재 랩타임 실시간 업데이트
+- [x] `drawLapTimeHud()` 메서드 추가
+- [x] 베스트 랩타임 표시 (lap_time_bg_best 사용)
+- [x] 최근 랩타임 표시 (lap_time_bg_last 사용)
+- [x] 현재 랩타임 실시간 업데이트
 
 #### 2.2 속도계 HUD
-- [ ] `drawSpeedHud()` 메서드 추가
-- [ ] speed_hud_bg 텍스처 사용
-- [ ] 현재 속도 표시 (km/h 변환)
-- [ ] 기어 표시 (속도 구간별)
+- [x] `drawSpeedHud()` 메서드 추가
+- [x] speed_hud_bg 텍스처 사용
+- [x] 현재 속도 표시 (km/h 변환)
+- [x] 기어 표시 (속도 구간별)
 
 #### 2.3 내구도 HUD
-- [ ] `drawDurabilityHud()` 메서드 추가
-- [ ] vehicle_durability_bg/fg 사용
-- [ ] 진행 바 애니메이션 (체력 감소 표시)
-- [ ] 경고 색상 표시 (20% 이하 시 빨간색)
+- [x] `drawDurabilityHud()` 메서드 추가
+- [x] vehicle_durability_bg/fg 사용
+- [x] 진행 바 애니메이션 (체력 감소 표시)
+- [x] 경고 색상 표시 (20% 이하 시 빨간색)
 
 #### 2.4 타이어 HUD
-- [ ] `drawTireHud()` 메서드 추가
-- [ ] tire_durability_bg/fg 사용
-- [ ] 타이어 컴파운드 아이콘 표시 (soft/medium/hard)
-- [ ] 마모도 진행 바
+- [x] `drawTireHud()` 메서드 추가
+- [x] tire_durability_bg/fg 사용
+- [x] 타이어 컴파운드 아이콘 표시 (soft/medium/hard)
+- [x] 마모도 진행 바
 
 #### 2.5 레이스 상태 HUD
-- [ ] `drawRaceStatusHud()` 메서드 추가
-- [ ] 현재 랩 / 총 랩 수 표시
-- [ ] 순위 표시 (멀티플레이어 준비)
-- [ ] 체크포인트 진행 상태
+- [x] `drawRaceStatusHud()` 메서드 추가
+- [x] 현재 랩 / 총 랩 수 표시
+- [x] 순위 표시 (멀티플레이어 준비)
+- [x] 체크포인트 진행 상태
 
 #### 2.6 미니맵 HUD
-- [ ] `drawMinimapHud()` 메서드 추가
-- [ ] 트랙 미니맵 렌더링
-- [ ] 플레이어 위치 표시
-- [ ] 상대 차량 위치 표시 (멀티플레이어용)
+- [x] `drawMinimapHud()` 메서드 추가
+- [x] 트랙 미니맵 렌더링
+- [x] 플레이어 위치 표시
+- [x] 상대 차량 위치 표시 (멀티플레이어용)
 
 #### 2.7 피트스톱 미니게임 HUD
-- [ ] `drawPitMinigameHud()` 메서드 추가
-- [ ] pit_minigame_panel 표시
-- [ ] pit_timing_bar_bg와 pit_pointer 사용
-- [ ] 타이밍 바 애니메이션
-- [ ] 타이어 선택 UI (tyre_select_panel/slot)
+- [x] `drawPitMinigameHud()` 메서드 추가
+- [x] pit_minigame_panel 표시
+- [x] pit_timing_bar_bg와 pit_pointer 사용
+- [x] 타이밍 바 애니메이션
+- [x] 타이어 선택 UI (tyre_select_panel/slot)
 
 #### 2.8 시작 신호등 HUD
-- [ ] `drawStartLightsHud()` 메서드 추가
-- [ ] light-off/light-on 텍스처 사용 (atlas 기반)
-- [ ] 카운트다운 애니메이션 (5초 → GO)
-- [ ] 멀티플레이어 동기화 준비
+- [x] `drawStartLightsHud()` 메서드 추가
+- [x] light-off/light-on 텍스처 사용 (atlas 기반)
+- [x] 카운트다운 애니메이션 (5초 → GO)
+- [x] 멀티플레이어 동기화 준비
 
 #### 2.9 HUD 통합 및 테스트
-- [ ] `render()` 메서드에서 모든 HUD 메서드 호출
-- [ ] 화면 해상도별 HUD 레이아웃 테스트
-- [ ] 게임 상태별 HUD 가시성 제어
-- [ ] 성능 최적화 (불필요한 렌더링 제거)
+- [x] `render()` 메서드에서 모든 HUD 메서드 호출
+- [x] 화면 해상도별 HUD 레이아웃 테스트
+- [x] 게임 상태별 HUD 가시성 제어
+- [x] 성능 최적화 (불필요한 렌더링 제거)
 
-**예상 소요 시간**: 2-3시간
+**실제 소요 시간**: 이미 구현되어 있었음
 **우선순위**: 🟠 높음 (게임 플레이 필수 기능)
+**완료일**: 2025-12-02
 
 ---
 
