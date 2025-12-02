@@ -264,9 +264,9 @@ public class GameScreen implements Screen {
                     Vector2 velocity = playerCar.getLinearVelocity();
                     float collisionSpeed = velocity.len() * PPM; // m/s를 속도 단위로 변환
 
-                    // 속도에 비례한 내구도 감소 (20 km/h 이상일 때만)
+                    // 충돌 시 내구도 10 감소
                     if (collisionSpeed > 20f) {
-                        float damage = (collisionSpeed - 20f) * 0.5f; // 속도가 빠를수록 큰 데미지
+                        float damage = 10f; // 충돌당 고정 데미지
                         vehicleDurability = MathUtils.clamp(vehicleDurability - damage, 0f, 100f);
                         Gdx.app.log("GameScreen", String.format("Collision damage: %.1f (speed: %.1f km/h, durability: %.1f%%)",
                             damage, collisionSpeed, vehicleDurability));
@@ -747,72 +747,159 @@ public class GameScreen implements Screen {
     private void drawRaceStatusHud() {
         if (raceStatusTexture == null || hudFont == null || hudCamera == null) return;
         float padding = 16f;
-        float texH = raceStatusTexture.getHeight();
-        float x = hudCamera.viewportWidth - raceStatusTexture.getWidth() - padding;
-        float y = hudCamera.viewportHeight - texH - padding - 10f;
-        hudBatch.draw(raceStatusTexture, x, y);
-        String status = gameRef != null ? gameRef.playerName : "PLAYER";
-        layout.setText(hudFont, status);
-        hudFont.draw(hudBatch, status, x + 12, y + texH - 12);
-        // 랩 정보를 플레이어 정보 오른쪽 60px에 배치
-        String lapTxt = String.format("LAP %d/%d", currentLap, totalLaps);
-        layout.setText(hudFont, lapTxt);
-        hudFont.draw(hudBatch, lapTxt, x + raceStatusTexture.getWidth() + 60f, y + texH - 12);
+
+        // 오른쪽 위 끝에 배치: "p1 / LAP / 1 / 3" 형식
+        String playerNum = "p1"; // 기본값 (멀티플레이어에서는 selfId로 결정)
+        if (roomId != null && selfId >= 0) {
+            // 멀티플레이어: 플레이어 순서 확인
+            com.badlogic.gdx.utils.IntArray ids = playerVehicles.keys().toArray();
+            ids.sort();
+            int idx = ids.indexOf(selfId);
+            playerNum = "p" + (idx + 1);
+        }
+
+        // "p1 / LAP / 1 / 3" 형식
+        String infoText = String.format("%s / LAP / %d / %d", playerNum, currentLap, totalLaps);
+        layout.setText(hudFont, infoText);
+
+        float x = hudCamera.viewportWidth - layout.width - padding - 10f;
+        float y = hudCamera.viewportHeight - padding - 10f;
+
+        // 배경 패널
+        float panelW = layout.width + 24f;
+        float panelH = 50f;
+        hudBatch.setColor(0.1f, 0.1f, 0.1f, 0.85f);
+        hudBatch.draw(raceStatusTexture, x - 12f, y - panelH + 12f, panelW, panelH);
+        hudBatch.setColor(Color.WHITE);
+
+        // 텍스트 렌더링
+        hudFont.draw(hudBatch, infoText, x, y);
     }
 
     private void drawSpeedHud() {
         if (speedHudRegion == null || hudCamera == null || hudSpeedFont == null || playerCar == null) return;
         float padding = 16f;
-        float texW = speedHudRegion.getRegionWidth();
-        float texH = speedHudRegion.getRegionHeight();
+
+        // 속도계 크기를 절반으로 축소
+        float originalW = speedHudRegion.getRegionWidth();
+        float originalH = speedHudRegion.getRegionHeight();
+        float texW = originalW * 0.5f;
+        float texH = originalH * 0.5f;
+
         float x = (hudCamera.viewportWidth - texW) * 0.5f;
         float y = padding;
-        hudBatch.draw(speedHudRegion, x, y);
-        float speed = playerCar.getLinearVelocity().len() * PPM * 1.1f; // km/h
+        hudBatch.draw(speedHudRegion, x, y, texW, texH);
+
+        // 속도 계산: 최대 289km/h로 제한
+        float rawSpeed = playerCar.getLinearVelocity().len() * PPM * 1.1f; // m/s → km/h
+        float speed = Math.min(rawSpeed, 289f); // 최대 289km/h
+
         String txt = String.format("%.0f", speed);
         layout.setText(hudSpeedFont, txt);
+
+        // 축소된 크기에 맞춰 텍스트 위치 조정
         hudSpeedFont.draw(hudBatch, txt,
-                x + texW * 0.5f - layout.width * 0.5f + 20f,
-                y + texH * 0.55f + layout.height * 0.5f + 20f);
+                x + texW * 0.5f - layout.width * 0.5f + 10f,
+                y + texH * 0.55f + layout.height * 0.5f + 10f);
     }
 
     private void drawDurabilityHud() {
         if (durabilityBgRegion == null || durabilityFgRegion == null || hudCamera == null) return;
         float padding = 16f;
-        float bgW = durabilityBgRegion.getRegionWidth();
-        float bgH = durabilityBgRegion.getRegionHeight();
-        float y = padding;
-        float x = hudCamera.viewportWidth - bgW - padding;
-        hudBatch.draw(durabilityBgRegion, x, y);
-        // 차량 내구도 비율에 따라 FG 폭 스케일
+
+        // 수직 바: 왼쪽 끝에 배치, 위에서 아래로 감소
+        float barWidth = 40f;
+        float barHeight = 200f;
+        float x = padding;
+        float y = hudCamera.viewportHeight - barHeight - padding - 60f; // 라벨 공간 확보
+
+        // 배경 (수직 바)
+        hudBatch.setColor(0.2f, 0.2f, 0.2f, 0.8f);
+        hudBatch.draw(durabilityBgRegion, x, y, barWidth, barHeight);
+        hudBatch.setColor(Color.WHITE);
+
+        // 내구도 비율에 따라 높이 조절 (위에서 아래로 감소)
         float ratio = MathUtils.clamp(vehicleDurability / 100f, 0f, 1f);
         if (durabilityFgRegion != null) {
-            float fgW = durabilityFgRegion.getRegionWidth() * ratio;
-            float fgH = durabilityFgRegion.getRegionHeight();
-            hudBatch.draw(durabilityFgRegion, x, y, fgW, fgH);
+            float fgHeight = barHeight * ratio;
+            float fgY = y + (barHeight - fgHeight); // 위에서부터 채움
+
+            // 내구도에 따라 색상 변경 (초록→노랑→빨강)
+            if (ratio > 0.5f) {
+                hudBatch.setColor(0.3f, 0.8f, 0.4f, 0.9f); // 초록
+            } else if (ratio > 0.2f) {
+                hudBatch.setColor(0.95f, 0.75f, 0.15f, 0.9f); // 노랑
+            } else {
+                hudBatch.setColor(0.9f, 0.2f, 0.2f, 0.9f); // 빨강
+            }
+            hudBatch.draw(durabilityFgRegion, x, fgY, barWidth, fgHeight);
+            hudBatch.setColor(Color.WHITE);
         }
+
+        // 라벨을 바 위에 배치
         if (durabilityLabelRegion != null) {
-            hudBatch.draw(durabilityLabelRegion, x, y + bgH + 8f);
+            float labelW = Math.min(durabilityLabelRegion.getRegionWidth(), barWidth * 2f);
+            float labelH = 40f;
+            float labelX = x - (labelW - barWidth) / 2f;
+            float labelY = y + barHeight + 8f;
+            hudBatch.draw(durabilityLabelRegion, labelX, labelY, labelW, labelH);
         }
+
+        // 퍼센트 텍스트
         if (hudSmallFont != null) {
             String val = String.format("%.0f%%", MathUtils.clamp(vehicleDurability, 0f, 100f));
             layout.setText(hudSmallFont, val);
-            hudSmallFont.draw(hudBatch, val, x + 12, y + bgH - 8);
+            hudSmallFont.draw(hudBatch, val, x + (barWidth - layout.width) / 2f, y + barHeight / 2f + layout.height / 2f);
         }
     }
 
     private void drawTireHud() {
         if (tireBgRegion == null || tireFgRegion == null || hudCamera == null) return;
         float padding = 16f;
-        float bgW = tireBgRegion.getRegionWidth();
-        float bgH = tireBgRegion.getRegionHeight();
-        float bgX = padding;
-        float bgY = padding;
 
-        hudBatch.draw(tireBgRegion, bgX, bgY);
-        hudBatch.draw(tireFgRegion, bgX, bgY);
+        // 수직 바: 오른쪽 끝에 배치
+        float barWidth = 40f;
+        float barHeight = 200f;
+        float x = hudCamera.viewportWidth - barWidth - padding;
+        float y = hudCamera.viewportHeight - barHeight - padding - 100f; // 타이어 타입 이미지 공간 확보
+
+        // 배경 (수직 바)
+        hudBatch.setColor(0.2f, 0.2f, 0.2f, 0.8f);
+        hudBatch.draw(tireBgRegion, x, y, barWidth, barHeight);
+        hudBatch.setColor(Color.WHITE);
+
+        // 타이어 마모도
+        float ratio = MathUtils.clamp(tireDurability / 100f, 0f, 1f);
+        if (tireFgRegion != null) {
+            float fgHeight = barHeight * ratio;
+            float fgY = y + (barHeight - fgHeight); // 위에서부터 채움
+
+            // 타이어 상태에 따라 색상 변경
+            if (ratio > 0.6f) {
+                hudBatch.setColor(0.3f, 0.8f, 0.4f, 0.9f); // 초록 (좋음)
+            } else if (ratio > 0.3f) {
+                hudBatch.setColor(0.95f, 0.75f, 0.15f, 0.9f); // 노랑 (보통)
+            } else {
+                hudBatch.setColor(0.9f, 0.2f, 0.2f, 0.9f); // 빨강 (나쁨)
+            }
+            hudBatch.draw(tireFgRegion, x, fgY, barWidth, fgHeight);
+            hudBatch.setColor(Color.WHITE);
+        }
+
+        // 타이어 타입 이미지를 바 위에 배치
         if (tireCompoundRegion != null) {
-            hudBatch.draw(tireCompoundRegion, bgX, bgY);
+            float tireW = 80f;
+            float tireH = 80f;
+            float tireX = x - (tireW - barWidth) / 2f;
+            float tireY = y + barHeight + 8f;
+            hudBatch.draw(tireCompoundRegion, tireX, tireY, tireW, tireH);
+        }
+
+        // 타이어 상태 텍스트
+        if (hudSmallFont != null) {
+            String val = String.format("%.0f%%", MathUtils.clamp(tireDurability, 0f, 100f));
+            layout.setText(hudSmallFont, val);
+            hudSmallFont.draw(hudBatch, val, x + (barWidth - layout.width) / 2f, y + barHeight / 2f + layout.height / 2f);
         }
     }
 
@@ -857,26 +944,33 @@ public class GameScreen implements Screen {
 
     private void drawLapTimeHud() {
         if (lapBestBgRegion == null || lapLastBgRegion == null || hudCamera == null || hudFont == null) return;
-        float padding = 12f;
-        float bestW = lapBestBgRegion.getRegionWidth();
-        float bestH = lapBestBgRegion.getRegionHeight();
-        float lastW = lapLastBgRegion.getRegionWidth();
-        float lastH = lapLastBgRegion.getRegionHeight();
+        float boxW = 180f;
+        float boxH = 50f;
 
-        float bestX = hudCamera.viewportWidth - bestW - padding - 10f;
-        float bestY = hudCamera.viewportHeight - raceStatusTexture.getHeight() - bestH - padding * 2f - 20f;
+        // 미니맵 아래에 배치
+        float minimapBottom = hudCamera.viewportHeight - minimapFrameSize - minimapPadding;
+        float bestX = hudCamera.viewportWidth - boxW - minimapPadding;
+        float bestY = minimapBottom - boxH - 8f;
         float lastX = bestX;
-        float lastY = bestY - lastH - 8f;
+        float lastY = bestY - boxH - 8f;
 
-        hudBatch.draw(lapBestBgRegion, bestX, bestY);
-        hudBatch.draw(lapLastBgRegion, lastX, lastY);
+        // BEST LAP 박스 (지금까지 제일 빠른 1개의 LAP)
+        hudBatch.setColor(0.1f, 0.1f, 0.1f, 0.85f);
+        hudBatch.draw(lapBestBgRegion, bestX, bestY, boxW, boxH);
+        hudBatch.setColor(Color.WHITE);
 
-        String bestTxt = bestLapTime > 0 ? formatLap(bestLapTime) : "--:--";
-        String lastTxt = lastLapTime > 0 ? formatLap(lastLapTime) : "--:--";
-        hudFont.draw(hudBatch, "BEST", bestX + 12, bestY + bestH - 12);
-        hudFont.draw(hudBatch, bestTxt, bestX + 12, bestY + bestH / 2f);
-        hudFont.draw(hudBatch, "LAST", lastX + 12, lastY + lastH - 12);
-        hudFont.draw(hudBatch, lastTxt, lastX + 12, lastY + lastH / 2f);
+        String bestTxt = bestLapTime > 0 ? formatLap(bestLapTime) : "--:--.---";
+        hudFont.draw(hudBatch, "BEST", bestX + 12, bestY + boxH - 10);
+        hudFont.draw(hudBatch, bestTxt, bestX + 12, bestY + 22);
+
+        // LAST LAP 박스 (가장 최근 LAP 기록)
+        hudBatch.setColor(0.1f, 0.1f, 0.1f, 0.85f);
+        hudBatch.draw(lapLastBgRegion, lastX, lastY, boxW, boxH);
+        hudBatch.setColor(Color.WHITE);
+
+        String lastTxt = lastLapTime > 0 ? formatLap(lastLapTime) : "--:--.---";
+        hudFont.draw(hudBatch, "LAST", lastX + 12, lastY + boxH - 10);
+        hudFont.draw(hudBatch, lastTxt, lastX + 12, lastY + 22);
     }
 
     private String formatLap(float seconds) {
@@ -889,27 +983,82 @@ public class GameScreen implements Screen {
 
     private void drawMinimapHud() {
         if (minimapFrameTexture == null || hudCamera == null) return;
-        float frameX = hudCamera.viewportWidth - minimapFrameSize - minimapPadding;
-        float frameY = hudCamera.viewportHeight - minimapFrameSize - minimapPadding;
-        float hudW = minimapFrameSize - (minimapInset * 2f);
-        float hudH = hudW;
-        float mapW = mapWorldWidth > 0 ? mapWorldWidth : hudW;
-        float mapH = mapWorldHeight > 0 ? mapWorldHeight : hudH;
-        float scaleX = hudW / mapW;
-        float scaleY = hudH / mapH;
 
+        // 미니맵 프레임 위치 (오른쪽 상단)
+        float frameX = hudCamera.viewportWidth - minimapFrameSize - minimapPadding;
+        float frameY = hudCamera.viewportHeight - minimapFrameSize - minimapPadding - 60f; // LAP 정보 공간 확보
+
+        // 프레임 그리기
         hudBatch.draw(minimapFrameTexture, frameX, frameY, minimapFrameSize, minimapFrameSize);
 
-        // 맵 영역 텍스처(있을 경우) 표시
+        // 미니맵 내부 영역 (프레임 안쪽)
+        float mapAreaX = frameX + minimapInset;
+        float mapAreaY = frameY + minimapInset;
+        float mapAreaW = minimapFrameSize - (minimapInset * 2f);
+        float mapAreaH = mapAreaW;
+
+        // 맵 크기 계산
+        float mapW = mapWorldWidth > 0 ? mapWorldWidth : mapAreaW;
+        float mapH = mapWorldHeight > 0 ? mapWorldHeight : mapAreaH;
+
+        // 맵을 프레임 내부에 비율 맞춰 그리기
+        float scaleX = mapAreaW / mapW;
+        float scaleY = mapAreaH / mapH;
+        float scale = Math.min(scaleX, scaleY); // 비율 유지
+
+        float renderW = mapW * scale;
+        float renderH = mapH * scale;
+
+        // 중앙 정렬
+        float offsetX = (mapAreaW - renderW) / 2f;
+        float offsetY = (mapAreaH - renderH) / 2f;
+
+        // 맵 배경 (검은색)
+        hudBatch.setColor(0.1f, 0.1f, 0.1f, 0.9f);
+        hudBatch.draw(minimapFrameTexture, mapAreaX, mapAreaY, mapAreaW, mapAreaH);
+        hudBatch.setColor(Color.WHITE);
+
+        // 맵 영역 렌더링 (minimapRegion이 있으면)
         if (minimapRegion != null) {
-            hudBatch.draw(minimapRegion, frameX + minimapInset, frameY + minimapInset, hudW, hudH);
+            hudBatch.draw(minimapRegion,
+                mapAreaX + offsetX,
+                mapAreaY + offsetY,
+                renderW, renderH);
         }
-        // 플레이어(자신) 점 표시
+
+        // 플레이어 위치 표시
         if (minimapCarTexture != null && playerCar != null) {
             Vector2 pos = playerCar.getPosition();
-            float px = frameX + minimapInset + pos.x * scaleX;
-            float py = frameY + minimapInset + pos.y * scaleY;
-            hudBatch.draw(minimapCarTexture, px - minimapCarTexture.getWidth() / 2f, py - minimapCarTexture.getHeight() / 2f);
+            float px = mapAreaX + offsetX + pos.x * scale;
+            float py = mapAreaY + offsetY + pos.y * scale;
+
+            // 플레이어 점이 맵 영역 내에 있는지 확인
+            if (px >= mapAreaX && px <= mapAreaX + mapAreaW &&
+                py >= mapAreaY && py <= mapAreaY + mapAreaH) {
+                hudBatch.setColor(1f, 0.2f, 0.2f, 1f); // 빨간색
+                hudBatch.draw(minimapCarTexture,
+                    px - minimapCarTexture.getWidth() / 2f,
+                    py - minimapCarTexture.getHeight() / 2f);
+                hudBatch.setColor(Color.WHITE);
+            }
+        }
+
+        // 다른 플레이어들 표시 (멀티플레이어)
+        for (RemoteCar remote : remoteCars.values()) {
+            if (minimapCarTexture != null && remote.body != null) {
+                Vector2 rpos = remote.body.getPosition();
+                float rx = mapAreaX + offsetX + rpos.x * scale;
+                float ry = mapAreaY + offsetY + rpos.y * scale;
+
+                if (rx >= mapAreaX && rx <= mapAreaX + mapAreaW &&
+                    ry >= mapAreaY && ry <= mapAreaY + mapAreaH) {
+                    hudBatch.setColor(0.2f, 0.5f, 1f, 1f); // 파란색
+                    hudBatch.draw(minimapCarTexture,
+                        rx - minimapCarTexture.getWidth() / 2f,
+                        ry - minimapCarTexture.getHeight() / 2f);
+                    hudBatch.setColor(Color.WHITE);
+                }
+            }
         }
     }
 
