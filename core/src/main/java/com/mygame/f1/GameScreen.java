@@ -436,11 +436,32 @@ public class GameScreen implements Screen {
             IntArray ids = playerVehicles.size > 0 ? playerVehicles.keys().toArray() : new IntArray(new int[]{selfId});
             ids.sort();
             int idx = ids.indexOf(selfId);
-            if (idx >= 0) {
-                Vector2 slot = GRID_SPAWNS[idx % GRID_SPAWNS.length];
+            if (idx >= 0 && idx < GRID_SPAWNS.length) {
+                Vector2 slot = GRID_SPAWNS[idx];
                 return new Vector2(slot);
             }
         }
+
+        // 싱글플레이: 맵에 "startgrid" 레이어의 첫 번째 객체 사용
+        if (map != null) {
+            MapLayer startgridLayer = map.getLayers().get("startgrid");
+            if (startgridLayer != null && startgridLayer.getObjects().getCount() > 0) {
+                MapObject firstObj = startgridLayer.getObjects().get(0);
+                if (firstObj instanceof RectangleMapObject) {
+                    Rectangle rect = ((RectangleMapObject) firstObj).getRectangle();
+                    float spawnX = (rect.x + rect.width / 2f) / PPM;
+                    float spawnY = (rect.y + rect.height / 2f) / PPM;
+                    Gdx.app.log("GameScreen", String.format("Spawn from startgrid[0]: (%.2f, %.2f)", spawnX, spawnY));
+                    return new Vector2(spawnX, spawnY);
+                }
+            }
+        }
+
+        // p1이 없으면 GRID_SPAWNS[0] 사용 (기존 하드코딩된 출발 위치)
+        if (GRID_SPAWNS.length > 0) {
+            return new Vector2(GRID_SPAWNS[0]);
+        }
+
         return new Vector2(fallbackX, fallbackY);
     }
 
@@ -464,6 +485,7 @@ public class GameScreen implements Screen {
         handleInput(delta);
         updateSteering(delta);
         updateFriction();
+        updateGrassZoneCheck();  // Grass 영역 감지 (limitSpeed 전에 호출)
         limitSpeed();
 
         handlePitState(delta);
