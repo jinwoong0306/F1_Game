@@ -427,10 +427,6 @@ public class GameScreen implements Screen {
     }
 
     private Vector2 computeSpawnPosition() {
-        // 기본값: 맵 중앙
-        float fallbackX = mapWorldWidth > 0 ? mapWorldWidth / 2f : 960 / PPM;
-        float fallbackY = mapWorldHeight > 0 ? mapWorldHeight / 2f : 640 / PPM;
-
         // 멀티플레이일 때 플레이어 ID 순으로 정렬해 슬롯을 배정
         if (roomId != null && selfId >= 0) {
             IntArray ids = playerVehicles.size > 0 ? playerVehicles.keys().toArray() : new IntArray(new int[]{selfId});
@@ -438,30 +434,22 @@ public class GameScreen implements Screen {
             int idx = ids.indexOf(selfId);
             if (idx >= 0 && idx < GRID_SPAWNS.length) {
                 Vector2 slot = GRID_SPAWNS[idx];
+                Gdx.app.log("GameScreen", String.format("Multiplayer spawn at p%d: (%.2f, %.2f)", idx + 1, slot.x, slot.y));
                 return new Vector2(slot);
             }
         }
 
-        // 싱글플레이: 맵에 "startgrid" 레이어의 첫 번째 객체 사용
-        if (map != null) {
-            MapLayer startgridLayer = map.getLayers().get("startgrid");
-            if (startgridLayer != null && startgridLayer.getObjects().getCount() > 0) {
-                MapObject firstObj = startgridLayer.getObjects().get(0);
-                if (firstObj instanceof RectangleMapObject) {
-                    Rectangle rect = ((RectangleMapObject) firstObj).getRectangle();
-                    float spawnX = (rect.x + rect.width / 2f) / PPM;
-                    float spawnY = (rect.y + rect.height / 2f) / PPM;
-                    Gdx.app.log("GameScreen", String.format("Spawn from startgrid[0]: (%.2f, %.2f)", spawnX, spawnY));
-                    return new Vector2(spawnX, spawnY);
-                }
-            }
-        }
-
-        // p1이 없으면 GRID_SPAWNS[0] 사용 (기존 하드코딩된 출발 위치)
+        // 싱글플레이: GRID_SPAWNS[0] (p1) 위치 사용
         if (GRID_SPAWNS.length > 0) {
-            return new Vector2(GRID_SPAWNS[0]);
+            Vector2 p1 = GRID_SPAWNS[0];
+            Gdx.app.log("GameScreen", String.format("Singleplayer spawn at p1: (%.2f, %.2f)", p1.x, p1.y));
+            return new Vector2(p1);
         }
 
+        // fallback: 맵 중앙
+        float fallbackX = mapWorldWidth > 0 ? mapWorldWidth / 2f : 960 / PPM;
+        float fallbackY = mapWorldHeight > 0 ? mapWorldHeight / 2f : 640 / PPM;
+        Gdx.app.log("GameScreen", String.format("Fallback spawn at map center: (%.2f, %.2f)", fallbackX, fallbackY));
         return new Vector2(fallbackX, fallbackY);
     }
 
@@ -523,6 +511,15 @@ public class GameScreen implements Screen {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             togglePause();
         }
+
+        // 신호등이 꺼지기 전까지 입력 차단 (ESC는 허용)
+        if (!startLightsDone) {
+            // 차량을 강제로 정지 상태로 유지
+            playerCar.setLinearVelocity(0, 0);
+            playerCar.setAngularVelocity(0);
+            return;
+        }
+
         if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
             playerCar.setLinearDamping(brakingLinearDamping);
         } else if (!isColliding) {
