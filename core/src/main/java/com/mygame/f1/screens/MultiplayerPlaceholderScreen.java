@@ -91,7 +91,7 @@ public class MultiplayerPlaceholderScreen implements Screen {
 
     @Override
     public void show() {
-        skin = SkinFactory.createDefaultSkin();
+        skin = Main.getSharedSkin();
         // FitViewport로 가상 해상도 고정(1920x1080)하여 UI 잘림 방지
         stage = new Stage(new FitViewport(1920, 1080));
         Gdx.input.setInputProcessor(stage);
@@ -715,7 +715,7 @@ public class MultiplayerPlaceholderScreen implements Screen {
     public void dispose() {
         if (client != null) client.close();
         if (stage != null) stage.dispose();
-        if (skin != null) skin.dispose();
+        // skin은 Main이 관리하므로 dispose 하지 않음
         if (connectThread != null && connectThread.isAlive()) {
             connectThread.interrupt();
         }

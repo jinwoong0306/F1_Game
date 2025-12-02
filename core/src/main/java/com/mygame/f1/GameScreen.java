@@ -350,7 +350,7 @@ public class GameScreen implements Screen {
         Gdx.app.log("PERF", String.format("GameScreen HUD init: %.2f ms", (System.nanoTime() - hudStart) / 1_000_000f));
 
         // pause UI init
-        pauseSkin = SkinFactory.createDefaultSkin();
+        pauseSkin = Main.getSharedSkin();
         pauseStage = new Stage(new ScreenViewport());
 
         // 네트워크 전송/수신 설정
@@ -694,7 +694,7 @@ public class GameScreen implements Screen {
         if (batch != null) batch.dispose();
         if (hudBatch != null) hudBatch.dispose();
         if (pauseStage != null) pauseStage.dispose();
-        if (pauseSkin != null) pauseSkin.dispose();
+        // pauseSkin은 Main이 관리하므로 dispose 하지 않음
         if (ownsCarTexture && carTexture != null) carTexture.dispose();
         disposeFont(hudFont, hudSmallFont, hudSpeedFont);
         // TextureRegion은 dispose 불필요 (TextureAtlas가 관리)

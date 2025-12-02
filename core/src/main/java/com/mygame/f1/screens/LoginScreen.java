@@ -26,7 +26,6 @@ import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.mygame.f1.Main;
 import com.mygame.f1.data.UserStore;
-import com.mygame.f1.ui.SkinFactory;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.NinePatch;
 import com.badlogic.gdx.scenes.scene2d.utils.NinePatchDrawable;
@@ -51,7 +50,7 @@ public class LoginScreen implements Screen {
     @Override
     public void show() {
         long t0 = System.nanoTime();
-        skin = SkinFactory.createDefaultSkin();
+        skin = Main.getSharedSkin();
         ensureHighlightBorder();
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
@@ -479,7 +478,7 @@ public class LoginScreen implements Screen {
     @Override
     public void dispose() {
         if (stage != null) stage.dispose();
-        if (skin != null) skin.dispose();
+        // skin은 Main이 관리하므로 dispose 하지 않음
         if (logoTex != null) logoTex.dispose();
         if (stripeTex != null) stripeTex.dispose();
         if (checkerTex != null) checkerTex.dispose();

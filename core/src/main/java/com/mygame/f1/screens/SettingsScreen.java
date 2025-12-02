@@ -13,7 +13,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.mygame.f1.Main;
-import com.mygame.f1.ui.SkinFactory;
 
 public class SettingsScreen implements Screen {
     private final Main game;
@@ -24,7 +23,7 @@ public class SettingsScreen implements Screen {
 
     @Override
     public void show() {
-        skin = SkinFactory.createDefaultSkin();
+        skin = Main.getSharedSkin();
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
 
@@ -59,5 +58,5 @@ public class SettingsScreen implements Screen {
     @Override public void pause() {}
     @Override public void resume() {}
     @Override public void hide() {}
-    @Override public void dispose() { if (stage!=null) stage.dispose(); if (skin!=null) skin.dispose(); }
+    @Override public void dispose() { if (stage!=null) stage.dispose(); /* skin은 Main이 관리 */ }
 }

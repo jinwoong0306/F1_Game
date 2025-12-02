@@ -17,7 +17,6 @@ import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.badlogic.gdx.utils.Timer;
 import com.mygame.f1.Main;
-import com.mygame.f1.ui.SkinFactory;
 
 public class SplashScreen implements Screen {
     private final Main game;
@@ -39,8 +38,8 @@ public class SplashScreen implements Screen {
         long t0 = System.nanoTime();
         log("show() start");
         long tSkin = System.nanoTime();
-        skin = SkinFactory.createDefaultSkin();
-        logMs("Skin created", tSkin);
+        skin = Main.getSharedSkin();
+        logMs("Skin retrieved", tSkin);
 
         long tStage = System.nanoTime();
         stage = new Stage(new ScreenViewport());
@@ -154,7 +153,7 @@ public class SplashScreen implements Screen {
     @Override public void hide() {}
     @Override public void dispose() {
         if (stage!=null) stage.dispose();
-        if (skin!=null) skin.dispose();
+        // skin은 Main이 관리하므로 dispose 하지 않음
         if (ownsLogo && logo!=null) logo.dispose();
         if (gradientTex!=null) gradientTex.dispose();
         if (ownsDot && dotTex!=null) dotTex.dispose();

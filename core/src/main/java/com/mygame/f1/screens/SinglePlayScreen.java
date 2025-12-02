@@ -52,7 +52,7 @@ public class SinglePlayScreen implements Screen {
 
     @Override
     public void show() {
-        skin = SkinFactory.createDefaultSkin();
+        skin = Main.getSharedSkin();
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
 

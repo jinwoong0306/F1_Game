@@ -18,9 +18,15 @@ import com.badlogic.gdx.Gdx;
 /**
  * 공용 Skin 생성기. 가능한 atlas/game_ui.atlas의 리전을 우선 사용하고,
  * 없으면 런타임으로 생성합니다.
+ *
+ * 성능 최적화: Main.java에서 한 번만 createDefaultSkin() 호출하여 싱글톤으로 사용.
  */
 public final class SkinFactory {
     private SkinFactory() {}
+
+    private static BitmapFont cachedDefaultFont;
+    private static BitmapFont cachedTitleFont;
+    private static BitmapFont cachedKrFont;
 
     public static final class Palette {
         public static final Color BG = Color.BLACK;
@@ -80,33 +86,39 @@ public final class SkinFactory {
             addAlias(skin, atlas, "icon-user", "single-play");
         } catch (Exception ignored) {}
 
-        // fonts
-        BitmapFont font = generateFont("fonts/capitolcity.ttf", 18);
-        BitmapFont titleFont = generateFont("fonts/capitolcity.ttf", 28);
-        BitmapFont krFont = generateFont("fonts/NotoSansKR-Regular.ttf", 20);
-        if (font == null) font = new BitmapFont();
-        if (titleFont == null) titleFont = font;
-        if (krFont == null) krFont = font;
-        skin.add("default-font", font, BitmapFont.class);
-        skin.add("title-font", titleFont, BitmapFont.class);
-        skin.add("kr-font", krFont, BitmapFont.class);
+        // fonts - 캐싱으로 중복 생성 방지
+        if (cachedDefaultFont == null) {
+            cachedDefaultFont = generateFont("fonts/capitolcity.ttf", 18);
+            if (cachedDefaultFont == null) cachedDefaultFont = new BitmapFont();
+        }
+        if (cachedTitleFont == null) {
+            cachedTitleFont = generateFont("fonts/capitolcity.ttf", 28);
+            if (cachedTitleFont == null) cachedTitleFont = cachedDefaultFont;
+        }
+        if (cachedKrFont == null) {
+            cachedKrFont = generateFont("fonts/NotoSansKR-Regular.ttf", 20);
+            if (cachedKrFont == null) cachedKrFont = cachedDefaultFont;
+        }
+        skin.add("default-font", cachedDefaultFont, BitmapFont.class);
+        skin.add("title-font", cachedTitleFont, BitmapFont.class);
+        skin.add("kr-font", cachedKrFont, BitmapFont.class);
 
         java.util.function.Function<Color, Drawable> tile = (c) -> new TiledDrawable(whiteRegion).tint(c);
 
         // Label styles
         Label.LabelStyle label = new Label.LabelStyle();
-        label.font = font; label.fontColor = Palette.TEXT;
+        label.font = cachedDefaultFont; label.fontColor = Palette.TEXT;
         skin.add("default", label);
         Label.LabelStyle labelKr = new Label.LabelStyle();
-        labelKr.font = krFont; labelKr.fontColor = Palette.TEXT;
+        labelKr.font = cachedKrFont; labelKr.fontColor = Palette.TEXT;
         skin.add("kr", labelKr);
         Label.LabelStyle title = new Label.LabelStyle();
-        title.font = titleFont; title.fontColor = Palette.TEXT;
+        title.font = cachedTitleFont; title.fontColor = Palette.TEXT;
         skin.add("title", title);
 
         // TextButton
         TextButton.TextButtonStyle btn = new TextButton.TextButtonStyle();
-        btn.font = font;
+        btn.font = cachedDefaultFont;
         btn.up = tile.apply(Palette.BTN_NORMAL);
         btn.over = tile.apply(Palette.BTN_OVER);
         btn.down = tile.apply(Palette.BTN_DOWN);
@@ -124,7 +136,7 @@ public final class SkinFactory {
 
         // TextField
         TextField.TextFieldStyle tfs = new TextField.TextFieldStyle();
-        tfs.font = font; tfs.fontColor = Palette.TEXT;
+        tfs.font = cachedDefaultFont; tfs.fontColor = Palette.TEXT;
         tfs.cursor = tile.apply(Palette.TEXT);
         tfs.selection = tile.apply(Palette.ACCENT.cpy().mul(1f,1f,1f,0.5f));
         tfs.background = tile.apply(Palette.SLOT);
@@ -144,7 +156,7 @@ public final class SkinFactory {
         cb.checkboxOff = tile.apply(Palette.BTN_NORMAL);
         cb.checkboxOn = tile.apply(Palette.ACCENT);
         cb.checkboxOver = tile.apply(Palette.BTN_OVER);
-        cb.font = font; cb.fontColor = Palette.TEXT;
+        cb.font = cachedDefaultFont; cb.fontColor = Palette.TEXT;
         skin.add("default", cb);
 
         // Slider
@@ -174,7 +186,7 @@ public final class SkinFactory {
 
         // Window
         Window.WindowStyle ws = new Window.WindowStyle();
-        ws.titleFont = titleFont; ws.titleFontColor = Palette.TEXT;
+        ws.titleFont = cachedTitleFont; ws.titleFontColor = Palette.TEXT;
         ws.background = tile.apply(Palette.PANEL);
         skin.add("default", ws);
 
@@ -234,11 +246,29 @@ public final class SkinFactory {
 
         // Error label
         Label.LabelStyle error = new Label.LabelStyle();
-        error.font = font;
+        error.font = cachedDefaultFont;
         error.fontColor = new Color(0.88f, 0.36f, 0.27f, 1f);
         skin.add("error", error);
 
         return skin;
+    }
+
+    /**
+     * 캐시된 폰트 리소스 정리. Main.dispose()에서 호출됨.
+     */
+    public static void disposeFonts() {
+        if (cachedDefaultFont != null) {
+            cachedDefaultFont.dispose();
+            cachedDefaultFont = null;
+        }
+        if (cachedTitleFont != null && cachedTitleFont != cachedDefaultFont) {
+            cachedTitleFont.dispose();
+            cachedTitleFont = null;
+        }
+        if (cachedKrFont != null && cachedKrFont != cachedDefaultFont) {
+            cachedKrFont.dispose();
+            cachedKrFont = null;
+        }
     }
 
     private static BitmapFont generateFont(String internalPath, int size) {

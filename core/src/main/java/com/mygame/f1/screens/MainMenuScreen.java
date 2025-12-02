@@ -23,7 +23,7 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import com.mygame.f1.Main;
-import com.mygame.f1.ui.SkinFactory;
+
 public class MainMenuScreen implements Screen {
     private final Main game;
     private Stage stage;
@@ -39,7 +39,7 @@ public class MainMenuScreen implements Screen {
     @Override
     public void show() {
         long t0 = System.nanoTime();
-        skin = SkinFactory.createDefaultSkin();
+        skin = Main.getSharedSkin();
         stage = new Stage(new ScreenViewport());
         Gdx.input.setInputProcessor(stage);
 
@@ -233,7 +233,7 @@ public class MainMenuScreen implements Screen {
     @Override
     public void dispose() {
         if (stage!=null) stage.dispose();
-        if (skin!=null) skin.dispose();
+        // skin은 Main이 관리하므로 dispose 하지 않음
         // 로고는 AssetManager에서 로드했을 가능성이 있어 소유한 경우만 해제
         if (ownsLogo && logoTex!=null) logoTex.dispose();
         if (stripeTex!=null) stripeTex.dispose();
