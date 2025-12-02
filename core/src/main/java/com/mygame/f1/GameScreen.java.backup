@@ -754,50 +754,50 @@ public class GameScreen implements Screen {
     }
 
     private void drawTireHud() {
-        if (tireBgRegion == null || tireFgRegion == null || hudCamera == null) return;
+        if (tireBgTexture == null || tireFgTexture == null || hudCamera == null) return;
         float padding = 16f;
-        float bgW = tireBgRegion.getRegionWidth();
-        float bgH = tireBgRegion.getRegionHeight();
+        float bgW = tireBgTexture.getWidth();
+        float bgH = tireBgTexture.getHeight();
         float bgX = padding;
         float bgY = padding;
 
-        hudBatch.draw(tireBgRegion, bgX, bgY);
-        hudBatch.draw(tireFgRegion, bgX, bgY);
-        if (tireCompoundRegion != null) {
-            hudBatch.draw(tireCompoundRegion, bgX, bgY);
+        hudBatch.draw(tireBgTexture, bgX, bgY);
+        hudBatch.draw(tireFgTexture, bgX, bgY);
+        if (tireCompoundTexture != null) {
+            hudBatch.draw(tireCompoundTexture, bgX, bgY);
         }
     }
 
     private void drawPitMinigameHud() {
         if (gameState != GameState.PIT_MINIGAME) return;
-        if (pitPanelRegion == null || pitBarRegion == null || hudCamera == null) return;
-        float panelW = pitPanelRegion.getRegionWidth();
-        float panelH = pitPanelRegion.getRegionHeight();
+        if (pitPanelTexture == null || pitBarTexture == null || hudCamera == null) return;
+        float panelW = pitPanelTexture.getWidth();
+        float panelH = pitPanelTexture.getHeight();
         float panelX = (hudCamera.viewportWidth - panelW) * 0.5f;
         float panelY = (hudCamera.viewportHeight - panelH) * 0.5f;
 
-        float barW = pitBarRegion.getRegionWidth();
-        float barH = pitBarRegion.getRegionHeight();
+        float barW = pitBarTexture.getWidth();
+        float barH = pitBarTexture.getHeight();
         float barX = (hudCamera.viewportWidth - barW) * 0.5f;
         float barY = panelY - 42f;
 
         BitmapFont font = hudFont != null ? hudFont : new BitmapFont();
 
-        hudBatch.draw(pitPanelRegion, panelX, panelY);
-        hudBatch.draw(pitBarRegion, barX, barY);
+        hudBatch.draw(pitPanelTexture, panelX, panelY);
+        hudBatch.draw(pitBarTexture, barX, barY);
         float pointerX = barX + pitPointerT * barW;
-        if (pitPointerRegion != null) {
-            hudBatch.draw(pitPointerRegion, pointerX - pitPointerRegion.getRegionWidth() / 2f, barY - 10f);
+        if (pitPointerTexture != null) {
+            hudBatch.draw(pitPointerTexture, pointerX - pitPointerTexture.getWidth() / 2f, barY - 10f);
         }
 
         font.draw(hudBatch, "Pit: " + pitSelectedCompound.toUpperCase(), panelX + 24f, panelY + panelH - 20f);
         font.draw(hudBatch, "Result: " + lastPitResult, panelX + 24f, panelY + 60f);
-        if (pitTyreSelectRegion != null) {
-            float selW = pitTyreSelectRegion.getRegionWidth();
-            float selH = pitTyreSelectRegion.getRegionHeight();
+        if (pitTyreSelectTexture != null) {
+            float selW = pitTyreSelectTexture.getWidth();
+            float selH = pitTyreSelectTexture.getHeight();
             float selX = panelX + (panelW - selW) * 0.5f;
             float selY = panelY + 12f;
-            hudBatch.draw(pitTyreSelectRegion, selX, selY);
+            hudBatch.draw(pitTyreSelectTexture, selX, selY);
             font.draw(hudBatch, "Q/W/E = SOFT/MEDIUM/HARD", selX + 12f, selY + selH - 12f);
         }
         if (pitServiceTimeRemaining > 0f) {
@@ -808,20 +808,20 @@ public class GameScreen implements Screen {
     }
 
     private void drawLapTimeHud() {
-        if (lapBestBgRegion == null || lapLastBgRegion == null || hudCamera == null || hudFont == null) return;
+        if (lapBestBgTexture == null || lapLastBgTexture == null || hudCamera == null || hudFont == null) return;
         float padding = 12f;
-        float bestW = lapBestBgRegion.getRegionWidth();
-        float bestH = lapBestBgRegion.getRegionHeight();
-        float lastW = lapLastBgRegion.getRegionWidth();
-        float lastH = lapLastBgRegion.getRegionHeight();
+        float bestW = lapBestBgTexture.getWidth();
+        float bestH = lapBestBgTexture.getHeight();
+        float lastW = lapLastBgTexture.getWidth();
+        float lastH = lapLastBgTexture.getHeight();
 
         float bestX = hudCamera.viewportWidth - bestW - padding - 10f;
         float bestY = hudCamera.viewportHeight - raceStatusTexture.getHeight() - bestH - padding * 2f - 20f;
         float lastX = bestX;
         float lastY = bestY - lastH - 8f;
 
-        hudBatch.draw(lapBestBgRegion, bestX, bestY);
-        hudBatch.draw(lapLastBgRegion, lastX, lastY);
+        hudBatch.draw(lapBestBgTexture, bestX, bestY);
+        hudBatch.draw(lapLastBgTexture, lastX, lastY);
 
         String bestTxt = bestLapTime > 0 ? formatLap(bestLapTime) : "--:--";
         String lastTxt = lastLapTime > 0 ? formatLap(lastLapTime) : "--:--";
@@ -867,29 +867,29 @@ public class GameScreen implements Screen {
 
     private void drawStartLightsHud() {
         if (startLightsDone || hudCamera == null) return;
-        if (startLightOnRegion == null || startLightOffRegion == null) return;
+        if (startLightOnTexture == null || startLightOffTexture == null) return;
         if (startCountdown > 3.1f) return; // 아직 준비 안 됨
 
         float paddingTop = 40f;
         float gap = 12f;
-        float drawW = startLightOnRegion.getRegionWidth();
-        float drawH = startLightOnRegion.getRegionHeight();
+        float drawW = startLightOnTexture.getWidth();
+        float drawH = startLightOnTexture.getHeight();
         float totalW = drawW * 4f + gap * 3f;
         float startX = (hudCamera.viewportWidth - totalW) * 0.5f;
         float y = hudCamera.viewportHeight - drawH - paddingTop;
 
         // 표시할 상태 계산: 3->2->1->GO 후 offTimer
-        TextureRegion[] lamps = new TextureRegion[]{startLightOffRegion, startLightOffRegion, startLightOffRegion, startLightOffRegion};
+        Texture[] lamps = new Texture[]{startLightOffTexture, startLightOffTexture, startLightOffTexture, startLightOffTexture};
         if (startCountdown > 2f) {
-            lamps[0] = startLightOnRegion;
+            lamps[0] = startLightOnTexture;
         } else if (startCountdown > 1f) {
-            lamps[0] = startLightOnRegion; lamps[1] = startLightOnRegion;
+            lamps[0] = startLightOnTexture; lamps[1] = startLightOnTexture;
         } else if (startCountdown > 0f) {
-            lamps[0] = startLightOnRegion; lamps[1] = startLightOnRegion; lamps[2] = startLightOnRegion;
+            lamps[0] = startLightOnTexture; lamps[1] = startLightOnTexture; lamps[2] = startLightOnTexture;
         } else if (goTimer > 0f) {
-            lamps[0] = startLightOnRegion; lamps[1] = startLightOnRegion; lamps[2] = startLightOnRegion; lamps[3] = startLightOnRegion;
+            lamps[0] = startLightOnTexture; lamps[1] = startLightOnTexture; lamps[2] = startLightOnTexture; lamps[3] = startLightOnTexture;
         } else if (offTimer > 0f) {
-            lamps[0] = startLightOffRegion; lamps[1] = startLightOffRegion; lamps[2] = startLightOffRegion; lamps[3] = startLightOffRegion;
+            lamps[0] = startLightOffTexture; lamps[1] = startLightOffTexture; lamps[2] = startLightOffTexture; lamps[3] = startLightOffTexture;
         }
 
         for (int i = 0; i < 4; i++) {
