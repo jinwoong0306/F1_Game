@@ -1,0 +1,40 @@
+package com.mygame.f1;
+
+import com.badlogic.gdx.Game;
+import com.badlogic.gdx.assets.AssetManager;
+import com.badlogic.gdx.graphics.Texture;
+import com.mygame.f1.screens.SplashScreen;
+
+/** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
+public class Main extends Game {
+    // ���� ��ü���� �����ϰ� ���� static final AssetManager
+    public static final AssetManager assetManager = new AssetManager();
+    public String playerName = "Player";
+
+    @Override
+    public void create() {
+        // ���� �ε�
+        String[] carTextures = {
+                "cars/Astra A4.png",
+                "cars/Boltworks RX-1.png",
+                "cars/Emerald E7.png",
+                "cars/Gold Rush GT.png",
+                "cars/Midnight P4.png",
+                "cars/Silverline S11.png"
+        };
+        for (String path : carTextures) {
+            assetManager.load(path, Texture.class);
+        }
+
+        assetManager.finishLoading(); // ��� ���� �ε��� ���� ������ ���
+
+        setScreen(new SplashScreen(this));
+    }
+
+    @Override
+    public void dispose() {
+        assetManager.dispose();
+        super.dispose();
+    }
+}
+

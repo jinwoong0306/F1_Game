@@ -54,6 +54,14 @@ run {
   if (os.contains('mac')) jvmArgs += "-XstartOnFirstThread"
 }
 
+// TexturePacker 실행용 태스크 (raw-ui -> assets/atlas/game_ui.atlas)
+tasks.register("packAtlas", JavaExec) {
+  group = "assets"
+  description = "Pack UI/HUD/car images into atlas"
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = "com.mygame.f1.tools.TexturePackerTool"
+}
+
 jar {
 // sets the name of the .jar file this produces to the name of the game or app, with the version after.
   archiveFileName.set("${appName}-${projectVersion}.jar")

@@ -13,7 +13,7 @@ repositories {
 
 dependencies {
     implementation project(':shared')
-    implementation "com.esotericsoftware:kryonet:2.24.0"
+    implementation "com.esotericsoftware:kryonet:2.22.0-RC1"
 }
 
 application {

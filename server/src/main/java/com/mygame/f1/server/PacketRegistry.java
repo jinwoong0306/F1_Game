@@ -18,11 +18,15 @@ public final class PacketRegistry {
         kryo.register(Packets.PlayerInputPacket.class);
         kryo.register(Packets.GameStatePacket.class);
         kryo.register(Packets.ReadyRequest.class);
+        kryo.register(Packets.SelectionRequest.class);
         kryo.register(Packets.RoomListRequest.class);
         kryo.register(Packets.RoomListResponse.class);
         kryo.register(Packets.RaceStartPacket.class);
         kryo.register(Packets.StartRaceRequest.class);
+        kryo.register(Packets.ChatMessage.class);
+        kryo.register(Packets.PlayerStateUpdate.class);
 
+        kryo.register(int[].class);
         kryo.register(Packets.PlayerInfo.class);
         kryo.register(Packets.PlayerState.class);
         kryo.register(Packets.RoomState.class);

@@ -4,9 +4,13 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Server;
+import com.esotericsoftware.minlog.Log;
 import com.mygame.f1.shared.Packets;
 
 import java.io.IOException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -24,13 +28,17 @@ public class GameServer {
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
     // connectionId -> roomId (single membership for now)
     private final Map<Integer, String> membership = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     public GameServer(int tcpPort, int udpPort) {
         this.tcpPort = tcpPort; this.udpPort = udpPort;
+        // 과도한 로그로 인한 I/O 부담을 줄이기 위해 INFO로 설정
+        Log.set(Log.LEVEL_INFO);
         this.server = new Server(16384, 8192);
         Kryo kryo = server.getKryo();
         PacketRegistry.register(kryo);
         server.addListener(new ServerListener());
+        scheduler.scheduleAtFixedRate(this::broadcastStates, 50, 50, TimeUnit.MILLISECONDS); // 20Hz
     }
 
     public void start() throws IOException {
@@ -55,39 +63,48 @@ public class GameServer {
                     onCreateRoom(c, req);
                 } else if (object instanceof Packets.JoinRoomRequest req) {
                     onJoinRoom(c, req);
-                } else if (object instanceof Packets.LeaveRoomRequest req) {
-                    onLeaveRoom(c, req);
-                } else if (object instanceof Packets.ReadyRequest req) {
-                    onReady(c, req);
-                } else if (object instanceof Packets.RoomListRequest) {
-                    onRoomList(c);
-                } else if (object instanceof Packets.StartRaceRequest req) {
-                    onStartRace(c, req);
-                }
-            } catch (Exception e) {
-                Packets.ErrorResponse err = new Packets.ErrorResponse();
-                err.message = "server error: " + e.getMessage();
-                c.sendTCP(err);
+            } else if (object instanceof Packets.LeaveRoomRequest req) {
+                onLeaveRoom(c, req);
+            } else if (object instanceof Packets.ReadyRequest req) {
+                onReady(c, req);
+            } else if (object instanceof Packets.SelectionRequest req) {
+                onSelection(c, req);
+            } else if (object instanceof Packets.RoomListRequest) {
+                onRoomList(c);
+            } else if (object instanceof Packets.StartRaceRequest req) {
+                onStartRace(c, req);
+            } else if (object instanceof Packets.ChatMessage msg) {
+                onChat(c, msg);
+            } else if (object instanceof Packets.PlayerStateUpdate upd) {
+                onPlayerState(c, upd);
+            }
+        } catch (Exception e) {
+            Packets.ErrorResponse err = new Packets.ErrorResponse();
+            err.message = "server error: " + e.getMessage();
+            c.sendTCP(err);
             }
         }
     }
 
     private void onCreateRoom(Connection c, Packets.CreateRoomRequest req) {
+        // 단일 로비 유지: 이미 방이 있으면 새로 만들지 않고 첫 방에 합류
+        // 방은 생성 요청마다 새로 만든다 (재사용 제거)
         int max = req.maxPlayers > 0 ? req.maxPlayers : 4;
         if (max > 4) max = 4; // hard cap per request
-        String roomId = UUID.randomUUID().toString().substring(0, 8);
-        Room room = new Room(roomId, Optional.ofNullable(req.roomName).orElse("Room"), max);
-        rooms.put(roomId, room);
-        System.out.printf("createRoom: %s by %s%n", roomId, req.username);
+        String newRoomId = UUID.randomUUID().toString().substring(0, 8);
+        Room room = new Room(newRoomId, Optional.ofNullable(req.roomName).orElse("Room"), max);
+        rooms.put(newRoomId, room);
+        System.out.printf("createRoom: %s by %s%n", room.id, req.username);
 
         Packets.PlayerInfo self = new Packets.PlayerInfo();
         self.playerId = c.getID();
         self.username = safeName(req.username);
+        self.vehicleIndex = 0;
         room.join(c, self);
-        membership.put(c.getID(), roomId);
+        membership.put(c.getID(), room.id);
 
         Packets.CreateRoomResponse res = new Packets.CreateRoomResponse();
-        res.ok = true; res.roomId = roomId; res.message = "created"; res.self = self;
+        res.ok = true; res.roomId = room.id; res.message = "created"; res.self = self;
         c.sendTCP(res);
         broadcastRoomState(room);
     }
@@ -106,6 +123,7 @@ public class GameServer {
         Packets.PlayerInfo self = new Packets.PlayerInfo();
         self.playerId = c.getID();
         self.username = safeName(req.username);
+        self.vehicleIndex = 0;
         room.join(c, self);
         membership.put(c.getID(), room.id);
 
@@ -131,6 +149,13 @@ public class GameServer {
         broadcastRoomState(room);
     }
 
+    private void onSelection(Connection c, Packets.SelectionRequest req) {
+        Room room = rooms.get(req.roomId);
+        if (room == null) { sendError(c, "selection denied: room not found"); return; }
+        room.setSelection(c.getID(), req.trackIndex, req.vehicleIndex);
+        broadcastRoomState(room);
+    }
+
     private void onRoomList(Connection c) {
         Packets.RoomListResponse res = new Packets.RoomListResponse();
         res.rooms = new ArrayList<>();
@@ -150,6 +175,10 @@ public class GameServer {
             sendError(c, "start denied: not in WAITING phase");
             return;
         }
+        if (!room.isHost(c.getID())) {
+            sendError(c, "start denied: only host can start");
+            return;
+        }
         if (room.players.size() < 2) {
             sendError(c, "start denied: need at least 2 players");
             return;
@@ -159,14 +188,95 @@ public class GameServer {
             return;
         }
         int seconds = req.countdownSeconds <= 0 ? 5 : Math.min(req.countdownSeconds, 10);
+        // 트랙 인덱스 확정: 요청값이 유효하면 설정, 아니면 room의 선택 사용
+        int trackIdx = req.trackIndex >= 0 ? req.trackIndex : room.selectedTrackIndex;
+        room.selectedTrackIndex = trackIdx;
         room.phase = Packets.RoomPhase.COUNTDOWN;
         Packets.RaceStartPacket start = new Packets.RaceStartPacket();
         start.countdownSeconds = seconds;
         start.startTimeMillis = System.currentTimeMillis() + seconds * 1000L;
+        start.trackIndex = trackIdx;
+        // 차량 인덱스/플레이어 ID 전달
+        List<Integer> ids = room.order;
+        start.playerIds = ids.stream().mapToInt(Integer::intValue).toArray();
+        start.vehicleIndices = ids.stream().mapToInt(id -> {
+            Packets.PlayerInfo p = room.players.get(id);
+            return p != null ? p.vehicleIndex : 0;
+        }).toArray();
         for (int connId : room.connectionIds()) {
             server.sendToTCP(connId, start);
         }
         broadcastRoomState(room);
+    }
+
+    private void onChat(Connection c, Packets.ChatMessage msg) {
+        Room room = rooms.get(msg.roomId);
+        if (room == null) { sendError(c, "chat denied: room not found"); return; }
+        msg.sender = safeName(msg.sender);
+        msg.ts = msg.ts == 0 ? System.currentTimeMillis() : msg.ts;
+        for (int connId : room.connectionIds()) {
+            server.sendToTCP(connId, msg);
+        }
+    }
+
+    private void onPlayerState(Connection c, Packets.PlayerStateUpdate upd) {
+        Room room = rooms.get(upd.roomId);
+        if (room == null) return;
+        Packets.PlayerState state = upd.state;
+        if (state == null) return;
+        state.playerId = c.getID();
+        room.latestStates.put(c.getID(), state);
+    }
+
+    private void broadcastStates() {
+        for (Room room : rooms.values()) {
+            if (room.latestStates.isEmpty()) continue;
+            applySimpleCollisions(room);
+            Packets.GameStatePacket gs = new Packets.GameStatePacket();
+            gs.serverTimestamp = System.currentTimeMillis();
+            Collection<Packets.PlayerState> values = room.latestStates.values();
+            gs.playerStates = values.toArray(new Packets.PlayerState[0]);
+            for (int connId : room.connectionIds()) {
+                server.sendToUDP(connId, gs);
+            }
+        }
+    }
+
+    // 단순 원형 충돌 처리: 서로 붙어 있으면 속도 감쇠 + 겹침 해소
+    private void applySimpleCollisions(Room room) {
+        final float radius = 0.19f; // 대략 차량 반경(로컬 렌더 크기 19px/PPM=0.19m)
+        final float minDist = radius * 2f;
+        final float minDistSq = minDist * minDist;
+        final float damping = 0.3f; // 속도 감쇠
+        final float pushScale = 0.5f; // 겹침 깊이의 절반만큼 밀어내기
+        List<Packets.PlayerState> states = new ArrayList<>(room.latestStates.values());
+        int n = states.size();
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                Packets.PlayerState a = states.get(i);
+                Packets.PlayerState b = states.get(j);
+                float dx = a.x - b.x;
+                float dy = a.y - b.y;
+                float distSq = dx * dx + dy * dy;
+                if (distSq < minDistSq) {
+                    // 속도 감쇠
+                    a.velocityX *= damping; a.velocityY *= damping;
+                    b.velocityX *= damping; b.velocityY *= damping;
+                    // 겹침 해소 및 반발
+                    float nx = dx, ny = dy;
+                    float len = (float)Math.sqrt(distSq);
+                    if (len > 0.0001f) {
+                        nx /= len; ny /= len;
+                        float penetration = minDist - len;
+                        float move = penetration * pushScale;
+                        a.x += nx * move; a.y += ny * move;
+                        b.x -= nx * move; b.y -= ny * move;
+                    }
+                    room.latestStates.put(a.playerId, a);
+                    room.latestStates.put(b.playerId, b);
+                }
+            }
+        }
     }
 
     private void sendError(Connection c, String message) {
@@ -213,6 +323,8 @@ public class GameServer {
         final List<Integer> order = new CopyOnWriteArrayList<>();
         final Set<Integer> ready = Collections.synchronizedSet(new HashSet<>());
         Packets.RoomPhase phase = Packets.RoomPhase.WAITING;
+        int selectedTrackIndex = 0;
+        final Map<Integer, Packets.PlayerState> latestStates = new ConcurrentHashMap<>();
 
         Room(String id, String name, int maxPlayers) {
             this.id = id; this.name = name; this.maxPlayers = maxPlayers;
@@ -227,6 +339,7 @@ public class GameServer {
             players.remove(connectionId);
             order.remove((Integer) connectionId);
             ready.remove(connectionId);
+            latestStates.remove(connectionId);
         }
 
         List<Integer> connectionIds() { return new ArrayList<>(players.keySet()); }
@@ -242,9 +355,11 @@ public class GameServer {
                     copy.playerId = p.playerId;
                     copy.username = p.username;
                     copy.ready = ready.contains(id);
+                    copy.vehicleIndex = p.vehicleIndex;
                     rs.players.add(copy);
                 }
             }
+            rs.selectedTrackIndex = selectedTrackIndex;
             return rs;
         }
 
@@ -253,8 +368,22 @@ public class GameServer {
             if (value) ready.add(connectionId); else ready.remove(connectionId);
         }
 
+        synchronized void setSelection(int connectionId, int trackIndex, int vehicleIndex) {
+            Packets.PlayerInfo p = players.get(connectionId);
+            if (p == null) return;
+            if (vehicleIndex >= 0) p.vehicleIndex = vehicleIndex;
+            boolean isHost = !order.isEmpty() && order.get(0) == connectionId;
+            if (isHost && trackIndex >= 0) {
+                selectedTrackIndex = trackIndex;
+            }
+        }
+
         synchronized boolean allReady() {
             return !players.isEmpty() && ready.containsAll(players.keySet());
+        }
+
+        synchronized boolean isHost(int connectionId) {
+            return !order.isEmpty() && order.get(0) == connectionId;
         }
     }
 }
