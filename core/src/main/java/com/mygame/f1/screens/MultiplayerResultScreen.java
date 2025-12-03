@@ -69,9 +69,14 @@ public class MultiplayerResultScreen implements Screen {
         title.setColor(Color.WHITE);
         card.add(title).padBottom(20).row();
 
-        // 구분선
+        // 구분선 (직접 생성)
         Table divider = new Table();
-        divider.setBackground(skin.getDrawable("divider"));
+        com.badlogic.gdx.graphics.Pixmap dividerPixmap = new com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGB888);
+        dividerPixmap.setColor(0.3f, 0.3f, 0.3f, 1f);
+        dividerPixmap.fill();
+        Texture dividerTex = new Texture(dividerPixmap);
+        dividerPixmap.dispose();
+        divider.setBackground(new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(dividerTex));
         card.add(divider).height(2).growX().padBottom(20).row();
 
         // 순위 테이블
@@ -154,9 +159,14 @@ public class MultiplayerResultScreen implements Screen {
 
         table.row();
 
-        // 구분선
+        // 구분선 (직접 생성)
         Table divider = new Table();
-        divider.setBackground(skin.getDrawable("divider"));
+        com.badlogic.gdx.graphics.Pixmap divPixmap = new com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGB888);
+        divPixmap.setColor(0.5f, 0.5f, 0.5f, 1f);
+        divPixmap.fill();
+        Texture divTex = new Texture(divPixmap);
+        divPixmap.dispose();
+        divider.setBackground(new com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(divTex));
         table.add(divider).colspan(4).height(2).growX().padTop(5).padBottom(10).row();
     }
 

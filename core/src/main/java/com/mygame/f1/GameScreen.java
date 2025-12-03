@@ -2179,9 +2179,9 @@ public class GameScreen implements Screen {
         // 서버에 완주 정보 전송
         lobbyClient.sendPlayerFinished(roomId, selfId, totalRaceTime, lapTimesArray);
 
-        // 게임 상태를 대기 중으로 변경 (카운트다운 대기)
+        // 게임 상태를 FINISHED로 변경하여 랩 카운팅 중지
+        gameState = GameState.FINISHED;
         Gdx.app.log("GameScreen", "Waiting for other players to finish...");
-        // gameState는 FINISHED로 변경하지 않음 - 결과 화면은 서버에서 RaceResultsPacket 받을 때 전환
     }
 
     /**

@@ -410,7 +410,17 @@ public class MultiplayerPlaceholderScreen implements Screen {
         nextCar.addListener(new ClickListener(){ @Override public void clicked(InputEvent event, float x, float y){ changeVehicle(1); }});
         chatInput.setTextFieldListener((textField, c) -> {
             if (c == '\n' || c == '\r') {
-                // ignore
+                // Enter 키로 메시지 전송
+                String msg = textField.getText();
+                if (msg != null && !msg.trim().isEmpty()) {
+                    String txt = msg.trim();
+                    if (client != null && currentRoomId != null) {
+                        client.sendChat(currentRoomId, safeName(game.playerName), txt);
+                    } else {
+                        appendChat(chatTable, chatScroll, safeName(game.playerName), txt, System.currentTimeMillis());
+                    }
+                    textField.setText("");
+                }
             }
         });
     }
