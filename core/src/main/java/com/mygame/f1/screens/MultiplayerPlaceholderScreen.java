@@ -201,12 +201,14 @@ public class MultiplayerPlaceholderScreen implements Screen {
         final Label chatInputLabel = new Label(" 메세지를 입력하세요...", skin, "kr");
         chatInputLabel.setColor(0.6f, 0.6f, 0.6f, 1f);
         chatInputLabel.setEllipsis(true);
+        chatInputLabel.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled); // Label이 터치 이벤트 차단하지 않도록
 
         // 입력창 배경 스타일
         Table chatInputBox = new Table();
         chatInputBox.setBackground(skin.getDrawable("chat-input-bg"));
         chatInputBox.pad(8);
         chatInputBox.add(chatInputLabel).growX().left();
+        chatInputBox.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.enabled); // Table 클릭 활성화
 
         // 클릭 시 네이티브 입력 다이얼로그 표시
         chatInputBox.addListener(new ClickListener() {

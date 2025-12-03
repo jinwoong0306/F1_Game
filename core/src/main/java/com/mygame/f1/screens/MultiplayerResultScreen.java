@@ -251,15 +251,23 @@ public class MultiplayerResultScreen implements Screen {
 
     private void returnToLobby() {
         Gdx.app.log("MultiplayerResultScreen", "Returning to lobby");
+        // 기존 연결 종료 (ghost player 방지)
+        if (lobbyClient != null && roomId != null) {
+            lobbyClient.leaveRoom(roomId);
+            lobbyClient.close(); // KryoNet 연결 완전히 종료
+        }
         // 로비 화면으로 돌아가기 (새로운 로비 생성)
         game.setScreen(new MultiplayerPlaceholderScreen(game));
     }
 
     private void exitToMenu() {
         Gdx.app.log("MultiplayerResultScreen", "Exiting to main menu");
-        // 연결 종료 및 메인 메뉴로
-        if (lobbyClient != null && roomId != null) {
-            lobbyClient.leaveRoom(roomId);
+        // 연결 완전히 종료 및 메인 메뉴로
+        if (lobbyClient != null) {
+            if (roomId != null) {
+                lobbyClient.leaveRoom(roomId);
+            }
+            lobbyClient.close(); // KryoNet 연결 완전히 종료
         }
         game.setScreen(new MainMenuScreen(game));
     }
