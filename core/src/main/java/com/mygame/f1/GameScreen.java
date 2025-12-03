@@ -1181,17 +1181,6 @@ public class GameScreen implements Screen {
         float x = (hudCamera.viewportWidth - layout.width) / 2f;
         float y = (hudCamera.viewportHeight + layout.height) / 2f;
 
-        // 카운트다운 숫자 배경 (검은색 반투명 박스)
-        float padding = 40f;
-        hudBatch.setColor(0f, 0f, 0f, 0.8f);
-        if (startLightOnRegion != null) {
-            hudBatch.draw(startLightOnRegion.getTexture(),
-                x - padding, y - layout.height - padding,
-                layout.width + padding * 2, layout.height + padding * 2,
-                0, 0, 1, 1);
-        }
-        hudBatch.setColor(Color.WHITE);
-
         // 카운트다운 숫자 (노란색)
         hudLapFont.setColor(1f, 0.9f, 0.2f, 1f);
         hudLapFont.draw(hudBatch, countdownText, x, y);
@@ -1307,6 +1296,26 @@ public class GameScreen implements Screen {
         }
     }
 
+    /**
+     * 플레이어 ID에 따른 고유 색상 반환
+     * 로컬 플레이어는 빨간색, 원격 플레이어는 각각 구분되는 색상
+     */
+    private Color getPlayerColor(int playerId) {
+        // 플레이어 ID를 정렬된 순서로 변환
+        com.badlogic.gdx.utils.IntArray ids = playerVehicles.keys().toArray();
+        ids.sort();
+        int playerIndex = ids.indexOf(playerId);
+
+        // 4명 플레이어를 위한 구분 가능한 색상 팔레트
+        switch (playerIndex) {
+            case 0: return new Color(0.2f, 0.6f, 1f, 1f);    // 밝은 파란색
+            case 1: return new Color(0.2f, 1f, 0.4f, 1f);    // 밝은 초록색
+            case 2: return new Color(1f, 0.8f, 0.2f, 1f);    // 노란색
+            case 3: return new Color(1f, 0.4f, 0.9f, 1f);    // 핑크색
+            default: return new Color(0.5f, 0.5f, 0.5f, 1f); // 회색 (폴백)
+        }
+    }
+
     private void drawMinimapHud() {
         if (minimapFrameTexture == null || hudCamera == null) return;
 
@@ -1400,7 +1409,9 @@ public class GameScreen implements Screen {
 
             if (rx >= mapAreaX && rx <= mapAreaX + mapAreaW &&
                 ry >= mapAreaY && ry <= mapAreaY + mapAreaH) {
-                hudBatch.setColor(0.2f, 0.5f, 1f, 1f); // 파란색
+                // 플레이어 ID별 고유 색상 할당
+                Color playerColor = getPlayerColor(remote.playerId);
+                hudBatch.setColor(playerColor);
                 hudBatch.draw(minimapCarTexture,
                     rx - minimapCarTexture.getWidth() / 2f,
                     ry - minimapCarTexture.getHeight() / 2f);
@@ -1791,6 +1802,7 @@ public class GameScreen implements Screen {
             RemoteCar rc = remoteCars.get(ps.playerId);
             if (rc == null) {
                 rc = new RemoteCar();
+                rc.playerId = ps.playerId;  // 플레이어 ID 저장
                 rc.vehicleIndex = ps.vehicleIndex;
                 rc.texture = loadCarTexture(ps.vehicleIndex);
                 rc.textureOwned = rc.texture != null && rc.texture != carTexture;
@@ -2161,8 +2173,8 @@ public class GameScreen implements Screen {
     // updateGrassZoneCheck() 메서드 제거됨 - Box2D ContactListener에서 자동 처리
 
     private void updateRemoteCars(float delta) {
-        // 보간 속도를 높여 좀 더 매끄럽게 이동 (필요시 15~20 정도로 조정 가능)
-        float lerp = MathUtils.clamp(delta * 15f, 0f, 1f);
+        // 보간 속도를 20으로 설정하여 끊김 현상 완화
+        float lerp = MathUtils.clamp(delta * 20f, 0f, 1f);
         for (IntMap.Entry<RemoteCar> e : remoteCars) {
             RemoteCar rc = e.value;
             if (!rc.initialized) continue;
@@ -2287,6 +2299,7 @@ public class GameScreen implements Screen {
     }
 
     private static class RemoteCar {
+        int playerId;  // 플레이어 ID 추가 (미니맵 색상 결정용)
         int vehicleIndex;
         final Vector2 position = new Vector2();
         final Vector2 targetPosition = new Vector2();
