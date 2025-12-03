@@ -138,7 +138,8 @@ public class GameScreen implements Screen {
     // 내구도 연동
     private float vehicleDurability = 100f; // 차량 내구도
     private float tireDurability = 100f;
-    private float tireWearRate = 0.15f; // 기본 마모율 (초당 15%/100초 소진 기준)
+    private float tireWearRate = 0.15f; // 기본 마모율 (초당 15%/100초 소진 기준) - 실제 계산은 getCompoundWearRate() 사용
+    private float tireSpeedMultiplier = 1.0f; // 컴파운드별 최고속도 보정 (soft:+5%, hard:-5%, medium:1.0)
     private int currentLap = 0; // 완료된 랩 수 (0부터 시작, 첫 랩 완료 시 1이 됨)
     private int totalLaps = 3;
     private float lapTimeSeconds = 0f;
@@ -679,6 +680,10 @@ public class GameScreen implements Screen {
         float durabilityLimiter = (vehicleDurability <= 0f || tireDurability <= 0f) ? 0.3f : 1f;
         effectiveMaxForward *= durabilityLimiter;
         effectiveMaxReverse *= durabilityLimiter;
+
+        // 타이어 컴파운드 속도 보정
+        effectiveMaxForward *= tireSpeedMultiplier;
+        effectiveMaxReverse *= tireSpeedMultiplier;
 
         // Grass 페널티 추가 적용
         if (isOnGrass) {
@@ -1411,9 +1416,9 @@ public class GameScreen implements Screen {
     }
 
     private float getCompoundWearRate() {
-        if ("soft".equalsIgnoreCase(pitSelectedCompound)) return 100f / 50f;  // 50초에 100% 소모
-        if ("hard".equalsIgnoreCase(pitSelectedCompound)) return 100f / 90f;  // 90초에 100% 소모
-        return 100f / 70f; // medium default
+        if ("soft".equalsIgnoreCase(pitSelectedCompound)) return 100f / 60f;  // 약 60초에 100% 소모
+        if ("hard".equalsIgnoreCase(pitSelectedCompound)) return 100f / 95f;  // 약 95초에 100% 소모
+        return 100f / 75f; // medium 기본 약 75초
     }
 
     private void handlePitState(float delta) {
@@ -1513,13 +1518,16 @@ public class GameScreen implements Screen {
     private void setTireCompound(String comp) {
         if ("soft".equalsIgnoreCase(comp) && tireCompoundSoftRegion != null) {
             tireCompoundRegion = tireCompoundSoftRegion;
-            tireWearRate = 0.22f;
+            tireWearRate = 100f / 60f;
+            tireSpeedMultiplier = 1.05f;
         } else if ("hard".equalsIgnoreCase(comp) && tireCompoundHardRegion != null) {
             tireCompoundRegion = tireCompoundHardRegion;
-            tireWearRate = 0.12f;
+            tireWearRate = 100f / 95f;
+            tireSpeedMultiplier = 0.95f;
         } else if (tireCompoundMediumRegion != null) {
             tireCompoundRegion = tireCompoundMediumRegion;
-            tireWearRate = 0.15f;
+            tireWearRate = 100f / 75f;
+            tireSpeedMultiplier = 1.0f;
         }
         pitSelectedCompound = comp;
     }
