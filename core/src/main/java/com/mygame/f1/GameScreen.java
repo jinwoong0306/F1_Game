@@ -1173,23 +1173,29 @@ public class GameScreen implements Screen {
      * 1등 완주 시 화면 중앙에 큰 숫자로 표시
      */
     private void drawRaceFinishCountdown() {
-        if (raceFinishCountdown < 0 || hudCamera == null || hudTitleFont == null) return;
-
-        // 반투명 배경
-        hudBatch.setColor(0f, 0f, 0f, 0.6f);
-        hudBatch.draw(pixelTexture, 0, 0, hudCamera.viewportWidth, hudCamera.viewportHeight);
-        hudBatch.setColor(Color.WHITE);
+        if (raceFinishCountdown < 0 || hudCamera == null || hudLapFont == null) return;
 
         // 화면 중앙에 큰 숫자 표시
         String countdownText = String.valueOf(raceFinishCountdown);
-        layout.setText(hudTitleFont, countdownText);
+        layout.setText(hudLapFont, countdownText);
         float x = (hudCamera.viewportWidth - layout.width) / 2f;
         float y = (hudCamera.viewportHeight + layout.height) / 2f;
 
+        // 카운트다운 숫자 배경 (검은색 반투명 박스)
+        float padding = 40f;
+        hudBatch.setColor(0f, 0f, 0f, 0.8f);
+        if (startLightOnRegion != null) {
+            hudBatch.draw(startLightOnRegion.getTexture(),
+                x - padding, y - layout.height - padding,
+                layout.width + padding * 2, layout.height + padding * 2,
+                0, 0, 1, 1);
+        }
+        hudBatch.setColor(Color.WHITE);
+
         // 카운트다운 숫자 (노란색)
-        hudTitleFont.setColor(1f, 0.9f, 0.2f, 1f);
-        hudTitleFont.draw(hudBatch, countdownText, x, y);
-        hudTitleFont.setColor(Color.WHITE);
+        hudLapFont.setColor(1f, 0.9f, 0.2f, 1f);
+        hudLapFont.draw(hudBatch, countdownText, x, y);
+        hudLapFont.setColor(Color.WHITE);
 
         // 1등 플레이어 정보 (숫자 위에)
         if (!firstPlacePlayer.isEmpty() && hudFont != null) {

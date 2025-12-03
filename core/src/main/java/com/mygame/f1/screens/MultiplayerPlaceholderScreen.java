@@ -200,11 +200,11 @@ public class MultiplayerPlaceholderScreen implements Screen {
         // 입력 영역: TextField로 영어 입력 지원 (한글 IME 미지원)
         final TextField chatInput = new TextField("", skin);
         chatInput.setMessageText("Type message...");
-        TextField.TextFieldStyle chatStyle = new TextField.TextFieldStyle(chatInput.getStyle());
-        chatStyle.background = skin.getDrawable("chat-input-bg");
-        chatStyle.fontColor = Color.WHITE;
-        chatStyle.messageFontColor = new Color(0.6f, 0.6f, 0.6f, 1f);
-        chatInput.setStyle(chatStyle);
+        TextField.TextFieldStyle inputStyle = new TextField.TextFieldStyle(chatInput.getStyle());
+        inputStyle.background = skin.getDrawable("chat-input-bg");
+        inputStyle.fontColor = Color.WHITE;
+        inputStyle.messageFontColor = new Color(0.6f, 0.6f, 0.6f, 1f);
+        chatInput.setStyle(inputStyle);
 
         // Enter 키로 메시지 전송
         chatInput.setTextFieldListener(new TextField.TextFieldListener() {
