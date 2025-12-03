@@ -675,6 +675,11 @@ public class GameScreen implements Screen {
         float effectiveMaxForward = maxForwardSpeed * speedMultiplier;
         float effectiveMaxReverse = maxReverseSpeed * speedMultiplier;
 
+        // 내구도 0 이하일 때 최고 속도를 30%로 제한
+        float durabilityLimiter = (vehicleDurability <= 0f || tireDurability <= 0f) ? 0.3f : 1f;
+        effectiveMaxForward *= durabilityLimiter;
+        effectiveMaxReverse *= durabilityLimiter;
+
         // Grass 페널티 추가 적용
         if (isOnGrass) {
             effectiveMaxForward *= grassSpeedPenalty;
