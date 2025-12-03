@@ -677,7 +677,7 @@
   </layer>
  </group>
  <group id="11" name="object">
-  <objectgroup id="12" name="startgrid">
+  <objectgroup id="12" name="startgrid" visible="0">
    <properties>
     <property name="type" value="start_line"/>
    </properties>
@@ -798,7 +798,7 @@
     </properties>
    </object>
   </objectgroup>
-  <objectgroup id="14" name="pit">
+  <objectgroup id="14" name="pit" visible="0">
    <properties>
     <property name="name" value="pit_service_area"/>
     <property name="serviceAngle" type="float" value="135"/>

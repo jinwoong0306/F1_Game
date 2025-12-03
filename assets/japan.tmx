@@ -678,41 +678,41 @@
   </layer>
  </group>
  <group id="11" name="object">
-  <objectgroup id="12" name="startgrid" visible="0">
+  <objectgroup id="12" name="startgrid">
    <properties>
     <property name="type" value="start_line"/>
    </properties>
-   <object id="154" x="4160" y="480" width="32" height="288">
+   <object id="154" x="2592" y="2848" width="32" height="288">
     <properties>
      <property name="type" value="start_line"/>
     </properties>
    </object>
   </objectgroup>
-  <objectgroup id="13" name="checkpoints" visible="0">
+  <objectgroup id="13" name="checkpoints">
    <properties>
     <property name="cpIndex" type="int" value="1"/>
    </properties>
-   <object id="155" x="4832" y="1696" width="256" height="32">
+   <object id="155" x="644" y="1928" width="384" height="32">
     <properties>
      <property name="cpIndex" type="int" value="1"/>
     </properties>
    </object>
-   <object id="156" x="4096" y="2112" width="256" height="64">
+   <object id="156" x="4796" y="2360" width="368" height="64">
     <properties>
      <property name="cpIndex" type="int" value="2"/>
     </properties>
    </object>
-   <object id="157" x="2048" y="2240" width="96" height="320">
+   <object id="157" x="4532" y="3224" width="96" height="320">
     <properties>
      <property name="cpIndex" type="int" value="3"/>
     </properties>
    </object>
-   <object id="158" x="1728" y="3072" width="32" height="512">
+   <object id="158" x="1960" y="1708" width="32" height="512" rotation="90">
     <properties>
      <property name="cpIndex" type="int" value="4"/>
     </properties>
    </object>
-   <object id="159" x="2176" y="416" width="32" height="448">
+   <object id="159" x="3144" y="1640" width="32" height="448">
     <properties>
      <property name="cpIndex" type="int" value="5"/>
     </properties>
