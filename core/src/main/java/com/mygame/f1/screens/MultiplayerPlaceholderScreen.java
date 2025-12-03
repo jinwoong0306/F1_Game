@@ -23,6 +23,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.ui.Value;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.NinePatch;
 import com.badlogic.gdx.scenes.scene2d.utils.NinePatchDrawable;
@@ -218,6 +219,8 @@ public class MultiplayerPlaceholderScreen implements Screen {
         });
         // 입력창 배경을 조금 밝게
         TextField.TextFieldStyle chatInputStyle = new TextField.TextFieldStyle(chatInput.getStyle());
+        chatInputStyle.font = skin.get("kr-font", BitmapFont.class); // 한글 폰트 사용
+        chatInputStyle.fontColor = Color.WHITE;
         chatInputStyle.background = skin.getDrawable("chat-input-bg"); // 입력창 배경 #808080
         chatInput.setStyle(chatInputStyle);
 

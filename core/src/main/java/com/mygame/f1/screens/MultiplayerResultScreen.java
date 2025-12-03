@@ -113,7 +113,7 @@ public class MultiplayerResultScreen implements Screen {
         Table buttonTable = new Table();
         buttonTable.defaults().pad(8).width(180);
 
-        ImageTextButton lobbyBtn = new ImageTextButton("Return to Lobby", skin, "primary");
+        ImageTextButton lobbyBtn = new ImageTextButton("Return to Lobby", skin, "default");
         lobbyBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
@@ -122,7 +122,7 @@ public class MultiplayerResultScreen implements Screen {
         });
         buttonTable.add(lobbyBtn);
 
-        ImageTextButton exitBtn = new ImageTextButton("Exit", skin, "secondary");
+        ImageTextButton exitBtn = new ImageTextButton("Exit", skin, "default");
         exitBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
