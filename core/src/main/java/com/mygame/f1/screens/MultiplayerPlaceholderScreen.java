@@ -421,7 +421,13 @@ public class MultiplayerPlaceholderScreen implements Screen {
         setStatus("Connecting...");
         connectThread = new Thread(() -> {
             try {
-                client.connect("localhost", 54555, 54777, 3000);
+                // 환경변수로 서버 IP 설정 가능 (기본값: localhost)
+                String serverHost = System.getenv("F1_SERVER_HOST");
+                if (serverHost == null || serverHost.trim().isEmpty()) {
+                    serverHost = "localhost"; // 기본값
+                }
+                Gdx.app.log("MultiplayerScreen", "Connecting to server: " + serverHost);
+                client.connect(serverHost, 54555, 54777, 3000);
                 Gdx.app.postRunnable(() -> {
                     setStatus("Connected");
                     refreshRooms();
