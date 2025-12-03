@@ -163,6 +163,10 @@ public class GameScreen implements Screen {
     private Stage pauseStage;
     private Skin pauseSkin;
 
+    // --- Multiplayer Race Finish Countdown ---
+    private int raceFinishCountdown = -1; // -1 = 표시 안함, 0~10 = 카운트다운 숫자
+    private String firstPlacePlayer = "";
+
     // --- 물리 파라미터 ---
     private float maxForwardSpeed = 3.5f;  // 2.7 * 1.3 = 3.51 (~3.5) (30% 증가)
     private float maxReverseSpeed = 1.3f;  // 1.0 * 1.3 = 1.3 (30% 증가)
@@ -405,12 +409,13 @@ public class GameScreen implements Screen {
             lobbyClient.onCountdownStart(pkt -> Gdx.app.postRunnable(() -> {
                 Gdx.app.log("GameScreen", String.format("Countdown started! First place: %s (%.2fs), %d seconds remaining",
                     pkt.firstPlaceUsername, pkt.firstPlaceTime, pkt.remainingSeconds));
-                // TODO: UI에 카운트다운 표시
+                raceFinishCountdown = pkt.remainingSeconds;
+                firstPlacePlayer = pkt.firstPlaceUsername;
             }));
 
             lobbyClient.onCountdownUpdate(pkt -> Gdx.app.postRunnable(() -> {
                 Gdx.app.log("GameScreen", String.format("Countdown update: %d seconds remaining", pkt.remainingSeconds));
-                // TODO: UI 업데이트
+                raceFinishCountdown = pkt.remainingSeconds;
             }));
 
             lobbyClient.onRaceResults(pkt -> Gdx.app.postRunnable(() -> {
@@ -851,6 +856,7 @@ public class GameScreen implements Screen {
         drawStartLightsHud();
         drawPitMinigameHud();
         drawLapTimeHud();
+        drawRaceFinishCountdown();  // 멀티플레이어 레이스 종료 카운트다운
         drawRaceResultHud();  // 레이스 종료 화면 (마지막에 그려서 최상위 레이어)
         hudBatch.end();
     }
@@ -1160,6 +1166,48 @@ public class GameScreen implements Screen {
         int s = total % 60;
         int ms = MathUtils.floor((seconds - total) * 1000f);
         return String.format("%02d:%02d.%03d", m, s, ms);
+    }
+
+    /**
+     * 멀티플레이어 레이스 종료 카운트다운 표시
+     * 1등 완주 시 화면 중앙에 큰 숫자로 표시
+     */
+    private void drawRaceFinishCountdown() {
+        if (raceFinishCountdown < 0 || hudCamera == null || hudTitleFont == null) return;
+
+        // 반투명 배경
+        hudBatch.setColor(0f, 0f, 0f, 0.6f);
+        hudBatch.draw(pixelTexture, 0, 0, hudCamera.viewportWidth, hudCamera.viewportHeight);
+        hudBatch.setColor(Color.WHITE);
+
+        // 화면 중앙에 큰 숫자 표시
+        String countdownText = String.valueOf(raceFinishCountdown);
+        layout.setText(hudTitleFont, countdownText);
+        float x = (hudCamera.viewportWidth - layout.width) / 2f;
+        float y = (hudCamera.viewportHeight + layout.height) / 2f;
+
+        // 카운트다운 숫자 (노란색)
+        hudTitleFont.setColor(1f, 0.9f, 0.2f, 1f);
+        hudTitleFont.draw(hudBatch, countdownText, x, y);
+        hudTitleFont.setColor(Color.WHITE);
+
+        // 1등 플레이어 정보 (숫자 위에)
+        if (!firstPlacePlayer.isEmpty() && hudFont != null) {
+            String firstPlaceText = firstPlacePlayer + " finished first!";
+            layout.setText(hudFont, firstPlaceText);
+            float msgX = (hudCamera.viewportWidth - layout.width) / 2f;
+            float msgY = y + layout.height + 40f;
+            hudFont.setColor(Color.GREEN);
+            hudFont.draw(hudBatch, firstPlaceText, msgX, msgY);
+            hudFont.setColor(Color.WHITE);
+        }
+
+        // 안내 메시지 (숫자 아래)
+        String infoText = "Finish the race or wait...";
+        layout.setText(hudFont, infoText);
+        float infoX = (hudCamera.viewportWidth - layout.width) / 2f;
+        float infoY = y - 60f;
+        hudFont.draw(hudBatch, infoText, infoX, infoY);
     }
 
     /**

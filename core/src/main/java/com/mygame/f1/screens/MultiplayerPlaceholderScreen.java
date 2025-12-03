@@ -197,45 +197,28 @@ public class MultiplayerPlaceholderScreen implements Screen {
         chatScroll.setStyle(chatStyle);
         chatWrapper.add(chatScroll).grow().top().row();
 
-        // 입력 영역: 한글 지원을 위해 Label + 네이티브 입력 사용
-        final Label chatInputLabel = new Label(" 메세지를 입력하세요...", skin, "kr");
-        chatInputLabel.setColor(0.6f, 0.6f, 0.6f, 1f);
-        chatInputLabel.setEllipsis(true);
-        chatInputLabel.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled); // Label이 터치 이벤트 차단하지 않도록
+        // 입력 영역: TextField로 영어 입력 지원 (한글 IME 미지원)
+        final TextField chatInput = new TextField("", skin);
+        chatInput.setMessageText("Type message...");
+        TextField.TextFieldStyle chatStyle = new TextField.TextFieldStyle(chatInput.getStyle());
+        chatStyle.background = skin.getDrawable("chat-input-bg");
+        chatStyle.fontColor = Color.WHITE;
+        chatStyle.messageFontColor = new Color(0.6f, 0.6f, 0.6f, 1f);
+        chatInput.setStyle(chatStyle);
 
-        // 입력창 배경 스타일
-        Table chatInputBox = new Table();
-        chatInputBox.setBackground(skin.getDrawable("chat-input-bg"));
-        chatInputBox.pad(8);
-        chatInputBox.add(chatInputLabel).growX().left();
-        chatInputBox.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.enabled); // Table 클릭 활성화
-
-        // 클릭 시 네이티브 입력 다이얼로그 표시
-        chatInputBox.addListener(new ClickListener() {
+        // Enter 키로 메시지 전송
+        chatInput.setTextFieldListener(new TextField.TextFieldListener() {
             @Override
-            public void clicked(InputEvent event, float x, float y) {
-                Gdx.input.getTextInput(new com.badlogic.gdx.Input.TextInputListener() {
-                    @Override
-                    public void input(String text) {
-                        if (text != null && !text.trim().isEmpty()) {
-                            String txt = text.trim();
-                            chatInputLabel.setText(txt);
-                            chatInputLabel.setColor(Color.WHITE);
-                            if (client != null && currentRoomId != null) {
-                                client.sendChat(currentRoomId, safeName(game.playerName), txt);
-                            } else {
-                                appendChat(chatTable, chatScroll, safeName(game.playerName), txt, System.currentTimeMillis());
-                            }
-                            // 입력 후 라벨 초기화
-                            Gdx.app.postRunnable(() -> {
-                                chatInputLabel.setText(" 메세지를 입력하세요...");
-                                chatInputLabel.setColor(0.6f, 0.6f, 0.6f, 1f);
-                            });
-                        }
+            public void keyTyped(TextField textField, char c) {
+                if ((c == '\n' || c == '\r') && !textField.getText().trim().isEmpty()) {
+                    String msg = textField.getText().trim();
+                    if (client != null && currentRoomId != null) {
+                        client.sendChat(currentRoomId, safeName(game.playerName), msg);
+                    } else {
+                        appendChat(chatTable, chatScroll, safeName(game.playerName), msg, System.currentTimeMillis());
                     }
-                    @Override
-                    public void canceled() {}
-                }, "채팅 메시지 입력", "", "메시지를 입력하세요");
+                    textField.setText("");
+                }
             }
         });
 
@@ -244,22 +227,15 @@ public class MultiplayerPlaceholderScreen implements Screen {
         sendBtn.getImageCell().size(18, 18);
         sendBtn.addListener(new ClickListener(){
             @Override public void clicked(InputEvent event, float x, float y){
-                // Send 버튼도 동일한 네이티브 입력 다이얼로그 표시
-                Gdx.input.getTextInput(new com.badlogic.gdx.Input.TextInputListener() {
-                    @Override
-                    public void input(String text) {
-                        if (text != null && !text.trim().isEmpty()) {
-                            String txt = text.trim();
-                            if (client != null && currentRoomId != null) {
-                                client.sendChat(currentRoomId, safeName(game.playerName), txt);
-                            } else {
-                                appendChat(chatTable, chatScroll, safeName(game.playerName), txt, System.currentTimeMillis());
-                            }
-                        }
+                if (!chatInput.getText().trim().isEmpty()) {
+                    String msg = chatInput.getText().trim();
+                    if (client != null && currentRoomId != null) {
+                        client.sendChat(currentRoomId, safeName(game.playerName), msg);
+                    } else {
+                        appendChat(chatTable, chatScroll, safeName(game.playerName), msg, System.currentTimeMillis());
                     }
-                    @Override
-                    public void canceled() {}
-                }, "채팅 메시지 입력", "", "메시지를 입력하세요");
+                    chatInput.setText("");
+                }
             }
         });
 
@@ -278,7 +254,7 @@ public class MultiplayerPlaceholderScreen implements Screen {
 
         Table chatInputRow = new Table();
         chatInputRow.defaults().height(50);
-        chatInputRow.add(chatInputBox).growX().growY().padRight(12);
+        chatInputRow.add(chatInput).growX().growY().padRight(12);
         chatInputRow.add(sendBtn).width(56).growY();
         chatWrapper.add(chatInputRow).growX().height(50).top().row();
 
