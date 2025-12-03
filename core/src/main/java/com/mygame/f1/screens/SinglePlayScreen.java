@@ -111,20 +111,20 @@ public class SinglePlayScreen implements Screen {
 
         Table header = new Table();
         Image carIcon = new Image(skin.getDrawable("icon-car"));
-        header.add(carIcon).size(22, 22).padRight(8);
-        Label headerLabel = new Label("CARS", skin);
+        header.add(carIcon).size(32, 32).padRight(12); // 22에서 32로 증가
+        Label headerLabel = new Label("CARS", skin, "title"); // title 스타일 사용으로 크기 증가
         headerLabel.setAlignment(Align.left);
         header.add(headerLabel).left();
         panel.add(header).left().row();
 
         Table preview = new Table();
         preview.setBackground(skin.getDrawable("slot-bg-normal"));
-        preview.pad(12);
+        preview.pad(12, 12, 32, 12); // 아래쪽 여백 20px 추가
         vehicleImage = new Image(loadVehicleTexture(vehicleIndex));
         vehicleImage.setScaling(Scaling.fit);
         vehicleLabel = new Label(vehicles.get(vehicleIndex).name, skin);
         vehicleLabel.setAlignment(Align.center);
-        preview.add(vehicleImage).size(260, 140).row();
+        preview.add(vehicleImage).size(390, 210).padTop(20).row(); // 1.5배 크기 (260→390, 140→210), 위쪽 여백 20px
         preview.add(vehicleLabel).padTop(10);
         panel.add(preview).growX().padTop(10).row();
 
@@ -151,8 +151,24 @@ public class SinglePlayScreen implements Screen {
         panel.add(stats).growX().padTop(10).row();
 
         Table controls = new Table();
-        TextButton prev = new TextButton("<", skin);
-        TextButton next = new TextButton(">", skin);
+        // 아틀라스 아이콘 사용한 ImageButton 생성 (좌측 버튼은 right 아이콘, 우측 버튼은 left 아이콘)
+        com.badlogic.gdx.scenes.scene2d.ui.ImageButton.ImageButtonStyle leftStyle =
+            new com.badlogic.gdx.scenes.scene2d.ui.ImageButton.ImageButtonStyle();
+        leftStyle.up = skin.getDrawable("right");
+        leftStyle.over = skin.newDrawable("right", 0.8f, 0.8f, 0.8f, 1f);
+        leftStyle.down = skin.newDrawable("right", 0.6f, 0.6f, 0.6f, 1f);
+
+        com.badlogic.gdx.scenes.scene2d.ui.ImageButton.ImageButtonStyle rightStyle =
+            new com.badlogic.gdx.scenes.scene2d.ui.ImageButton.ImageButtonStyle();
+        rightStyle.up = skin.getDrawable("left");
+        rightStyle.over = skin.newDrawable("left", 0.8f, 0.8f, 0.8f, 1f);
+        rightStyle.down = skin.newDrawable("left", 0.6f, 0.6f, 0.6f, 1f);
+
+        com.badlogic.gdx.scenes.scene2d.ui.ImageButton prev =
+            new com.badlogic.gdx.scenes.scene2d.ui.ImageButton(leftStyle);
+        com.badlogic.gdx.scenes.scene2d.ui.ImageButton next =
+            new com.badlogic.gdx.scenes.scene2d.ui.ImageButton(rightStyle);
+
         prev.addListener(new ClickListener(){
             @Override public void clicked(InputEvent event, float x, float y) {
                 vehicleIndex = (vehicleIndex - 1 + vehicles.size()) % vehicles.size();
@@ -165,8 +181,8 @@ public class SinglePlayScreen implements Screen {
                 refreshVehicle();
             }
         });
-        controls.add(prev).width(80).height(48).padRight(8);
-        controls.add(next).width(80).height(48);
+        controls.add(prev).size(64, 64).padRight(12); // 아이콘 크기 64x64
+        controls.add(next).size(64, 64);
         panel.add(controls).padTop(10).row();
         return panel;
     }
@@ -179,8 +195,8 @@ public class SinglePlayScreen implements Screen {
 
         Table header = new Table();
         Image trackIcon = new Image(skin.getDrawable("icon-track"));
-        header.add(trackIcon).size(22, 22).padRight(8);
-        Label headerLabel = new Label("MAP", skin);
+        header.add(trackIcon).size(32, 32).padRight(12);
+        Label headerLabel = new Label("MAP", skin, "title");
         headerLabel.setAlignment(Align.left);
         header.add(headerLabel).left();
         header.left();
