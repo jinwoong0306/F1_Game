@@ -99,6 +99,8 @@ public class GameScreen implements Screen {
     private BitmapFont hudSmallFont;
     private BitmapFont hudSpeedFont;
     private BitmapFont hudLapFont; // LAP HUD 전용 큰 폰트
+    private static final float HUD_SPEED_SCALE = 0.60f; // HUD 표기 축소 비율 (최대 약 268 표시)
+    private static final float HUD_SPEED_MAX = 268f;    // HUD 표기 최대치
     private GlyphLayout layout = new GlyphLayout();
     private TextureAtlas gameAtlas; // TextureAtlas 참조
     private TextureRegion lapBestBgRegion, lapLastBgRegion;
@@ -164,7 +166,7 @@ public class GameScreen implements Screen {
     private Skin pauseSkin;
 
     // --- 물리 파라미터 ---
-    private float maxForwardSpeed = 3.5f;  // 2.7 * 1.3 = 3.51 (~3.5) (30% 증가)
+    private float maxForwardSpeed = 4.0f;  // 약 15% 상향
     private float maxReverseSpeed = 1.3f;  // 1.0 * 1.3 = 1.3 (30% 증가)
     private float forwardAcceleration = 1.7f;  // 가속력은 유지
     private float reverseAcceleration = 1.0f;  // 가속력은 유지
@@ -172,7 +174,7 @@ public class GameScreen implements Screen {
     // --- 점진적 가속 시스템 ---
     private float speedMultiplier = 0.5f; // 초기 속도는 50%부터 시작
     private float speedMultiplierTarget = 1.0f; // 목표 100%
-    private float speedRampUpRate = 0.10f; // 초당 10% 증가 (약 5초에 100% 도달, 더 느림)
+    private float speedRampUpRate = 0.03f; // 초당 3% 증가 (느리게 가속)
     private float turningPower = 10f;
     private float grip = 18.0f;
     private float minSpeedForTurn = 0.8f;
@@ -578,7 +580,7 @@ public class GameScreen implements Screen {
             return;
         }
 
-        if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
+        if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
             playerCar.setLinearDamping(brakingLinearDamping);
         } else if (!isColliding) {
             playerCar.setLinearDamping(defaultLinearDamping);
@@ -898,9 +900,9 @@ public class GameScreen implements Screen {
         float y = padding;
         hudBatch.draw(speedHudRegion, x, y, texW, texH);
 
-        // 속도 계산: 최대 450km/h로 제한 (5.5 m/s = ~312 km/h * 1.1 = ~343 km/h)
-        float rawSpeed = playerCar.getLinearVelocity().len() * PPM * 1.1f; // m/s → km/h
-        float speed = Math.min(rawSpeed, 450f); // 최대 450km/h
+        // 속도 계산: HUD 표기용으로 스케일 축소, 최대 268 표기
+        float rawSpeed = playerCar.getLinearVelocity().len() * PPM * 1.1f * HUD_SPEED_SCALE; // m/s → km/h (표기 축소)
+        float speed = Math.min(rawSpeed, HUD_SPEED_MAX); // 최대 268km/h 표기
 
         String txt = String.format("%.0f", speed);
 
