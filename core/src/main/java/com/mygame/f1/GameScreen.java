@@ -1299,15 +1299,14 @@ public class GameScreen implements Screen {
     /**
      * 플레이어 ID에 따른 고유 색상 반환
      * 로컬 플레이어는 빨간색, 원격 플레이어는 각각 구분되는 색상
+     * playerId를 직접 사용하여 색상을 결정 (더 안정적)
      */
     private Color getPlayerColor(int playerId) {
-        // 플레이어 ID를 정렬된 순서로 변환
-        com.badlogic.gdx.utils.IntArray ids = playerVehicles.keys().toArray();
-        ids.sort();
-        int playerIndex = ids.indexOf(playerId);
+        // playerId를 4로 나눈 나머지로 색상 결정 (0~3)
+        int colorIndex = playerId % 4;
 
         // 4명 플레이어를 위한 구분 가능한 색상 팔레트
-        switch (playerIndex) {
+        switch (colorIndex) {
             case 0: return new Color(0.2f, 0.6f, 1f, 1f);    // 밝은 파란색
             case 1: return new Color(0.2f, 1f, 0.4f, 1f);    // 밝은 초록색
             case 2: return new Color(1f, 0.8f, 0.2f, 1f);    // 노란색
