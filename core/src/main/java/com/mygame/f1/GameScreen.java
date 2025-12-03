@@ -145,6 +145,7 @@ public class GameScreen implements Screen {
     private float bestLapTime = -1f;
     private float lastLapTime = -1f;
     private float totalRaceTime = 0f;  // 전체 레이스 시간 (모든 랩의 합)
+    private List<Float> completedLapTimes = new ArrayList<>(); // 완료된 각 랩의 시간 기록
     private List<Checkpoint> checkpoints = new ArrayList<>();
     private Rectangle startLineBounds;
     private int totalCheckpoints = 0;
@@ -399,6 +400,24 @@ public class GameScreen implements Screen {
         // 네트워크 전송/수신 설정
         if (lobbyClient != null && roomId != null) {
             lobbyClient.onGameState(this::handleGameState);
+
+            // 레이스 완주 관련 핸들러 등록
+            lobbyClient.onCountdownStart(pkt -> Gdx.app.postRunnable(() -> {
+                Gdx.app.log("GameScreen", String.format("Countdown started! First place: %s (%.2fs), %d seconds remaining",
+                    pkt.firstPlaceUsername, pkt.firstPlaceTime, pkt.remainingSeconds));
+                // TODO: UI에 카운트다운 표시
+            }));
+
+            lobbyClient.onCountdownUpdate(pkt -> Gdx.app.postRunnable(() -> {
+                Gdx.app.log("GameScreen", String.format("Countdown update: %d seconds remaining", pkt.remainingSeconds));
+                // TODO: UI 업데이트
+            }));
+
+            lobbyClient.onRaceResults(pkt -> Gdx.app.postRunnable(() -> {
+                Gdx.app.log("GameScreen", "Race results received! Transitioning to results screen...");
+                gameRef.setScreen(new com.mygame.f1.screens.MultiplayerResultScreen(gameRef, lobbyClient, roomId, pkt));
+            }));
+
             stateSendTask = Timer.schedule(new Timer.Task() {
                 @Override public void run() { sendState(); }
             }, 0.05f, 0.05f);
@@ -806,7 +825,12 @@ public class GameScreen implements Screen {
         // Atlas에 없는 개별 텍스처만 dispose
         disposeTex(minimapFrameTexture, minimapRegion, minimapCarTexture, raceStatusTexture,
             durabilityLabelTexture, tireLabelTexture);
-        if (lobbyClient != null) lobbyClient.onGameState(null);
+        if (lobbyClient != null) {
+            lobbyClient.onGameState(null);
+            lobbyClient.onCountdownStart(null);
+            lobbyClient.onCountdownUpdate(null);
+            lobbyClient.onRaceResults(null);
+        }
         for (IntMap.Entry<RemoteCar> e : remoteCars) {
             if (e.value.textureOwned && e.value.texture != null) e.value.texture.dispose();
         }
@@ -2061,6 +2085,9 @@ public class GameScreen implements Screen {
                 // 총 레이스 시간에 현재 랩 타임 누적
                 totalRaceTime += lastLapTime;
 
+                // 완료된 랩 타임 기록
+                completedLapTimes.add(lastLapTime);
+
                 currentLap++;
 
                 // 레이스 완료 확인
@@ -2105,7 +2132,7 @@ public class GameScreen implements Screen {
 
     /**
      * 레이스 완료 시 호출되는 메서드
-     * 게임을 일시정지하고 결과 화면 표시
+     * 싱글플레이와 멀티플레이를 분기 처리
      */
     private void onRaceFinished() {
         Gdx.app.log("GameScreen", String.format("=== RACE FINISHED ==="));
@@ -2120,8 +2147,41 @@ public class GameScreen implements Screen {
             playerCar.setAngularVelocity(0);
         }
 
-        // 게임 상태를 종료로 변경
+        // 멀티플레이 vs 싱글플레이 분기
+        if (lobbyClient != null && lobbyClient.isConnected() && roomId != null) {
+            onMultiplayerRaceFinished();
+        } else {
+            onSingleplayerRaceFinished();
+        }
+    }
+
+    /**
+     * 싱글플레이 레이스 완료 처리
+     */
+    private void onSingleplayerRaceFinished() {
+        Gdx.app.log("GameScreen", "Singleplayer race finished - showing results");
         gameState = GameState.FINISHED;
+    }
+
+    /**
+     * 멀티플레이 레이스 완료 처리
+     * 서버에 완주 정보를 전송하고 카운트다운 대기
+     */
+    private void onMultiplayerRaceFinished() {
+        Gdx.app.log("GameScreen", "Multiplayer race finished - sending results to server");
+
+        // 랩 타임 배열 생성
+        float[] lapTimesArray = new float[completedLapTimes.size()];
+        for (int i = 0; i < completedLapTimes.size(); i++) {
+            lapTimesArray[i] = completedLapTimes.get(i);
+        }
+
+        // 서버에 완주 정보 전송
+        lobbyClient.sendPlayerFinished(roomId, selfId, totalRaceTime, lapTimesArray);
+
+        // 게임 상태를 대기 중으로 변경 (카운트다운 대기)
+        Gdx.app.log("GameScreen", "Waiting for other players to finish...");
+        // gameState는 FINISHED로 변경하지 않음 - 결과 화면은 서버에서 RaceResultsPacket 받을 때 전환
     }
 
     /**
@@ -2135,6 +2195,7 @@ public class GameScreen implements Screen {
         lastLapTime = -1f;
         bestLapTime = -1f;
         totalRaceTime = 0f;
+        completedLapTimes.clear(); // 랩 타임 기록 초기화
         lastCheckpointIndex = 0;
         checkpointsInside.clear();
         insideStartLine = false;
