@@ -141,7 +141,8 @@ public class GameScreen implements Screen {
     private float vehicleDurability = 100f; // 차량 내구도
     private float tireDurability = 100f;
     private float tireWearRate = 0.15f; // 기본 마모율 (초당 15%/100초 소진 기준) - 실제 계산은 getCompoundWearRate() 사용
-    private float tireSpeedMultiplier = 1.0f; // 컴파운드별 최고속도 보정 (soft:+5%, hard:-5%, medium:1.0)
+    private float tireSpeedMultiplier = 1.0f; // 컴파운드별 최고속도 보정
+    private float tireTurnMultiplier = 1.0f;  // 컴파운드별 회전력 보정 (hard 회전율 감소용)
     private int currentLap = 0; // 완료된 랩 수 (0부터 시작, 첫 랩 완료 시 1이 됨)
     private int totalLaps = 3;
     private float lapTimeSeconds = 0f;
@@ -636,9 +637,9 @@ public class GameScreen implements Screen {
         // 속도에 따른 회전력 감소 계산
         float currentSpeed = playerCar.getLinearVelocity().len();
         float speedRatio = Math.min(currentSpeed / maxForwardSpeed, 1.0f);  // 0.0 ~ 1.0
-        // 고속일수록 회전력 감소: 최고 속도에서 50%까지 감소
+        // 고속일수록 회전력 감소 + 타이어 회전 보정
         float turnMultiplier = 1.0f - (speedRatio * highSpeedTurnReduction);
-        float maxAngularVelocity = baseMaxAngularVelocity * turnMultiplier;
+        float maxAngularVelocity = baseMaxAngularVelocity * turnMultiplier * tireTurnMultiplier;
 
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.A)) {
             targetAngularVelocity = (movingReverse && forwardSpeed < -0.5f) ? -maxAngularVelocity : maxAngularVelocity;
@@ -1418,9 +1419,9 @@ public class GameScreen implements Screen {
     }
 
     private float getCompoundWearRate() {
-        if ("soft".equalsIgnoreCase(pitSelectedCompound)) return 100f / 60f;  // 약 60초에 100% 소모
-        if ("hard".equalsIgnoreCase(pitSelectedCompound)) return 100f / 95f;  // 약 95초에 100% 소모
-        return 100f / 75f; // medium 기본 약 75초
+        if ("soft".equalsIgnoreCase(pitSelectedCompound)) return 100f / 90f;  // 약 90초에 100% 소모
+        if ("hard".equalsIgnoreCase(pitSelectedCompound)) return 100f / 150f;  // 약 150초에 100% 소모
+        return 100f / 130f; // medium 기본 약 130초
     }
 
     private void handlePitState(float delta) {
@@ -1520,16 +1521,19 @@ public class GameScreen implements Screen {
     private void setTireCompound(String comp) {
         if ("soft".equalsIgnoreCase(comp) && tireCompoundSoftRegion != null) {
             tireCompoundRegion = tireCompoundSoftRegion;
-            tireWearRate = 100f / 60f;
-            tireSpeedMultiplier = 1.05f;
+            tireWearRate = 100f / 90f;
+            tireSpeedMultiplier = 1.12f;   // 최고속도 +12%
+            tireTurnMultiplier = 1.0f;
         } else if ("hard".equalsIgnoreCase(comp) && tireCompoundHardRegion != null) {
             tireCompoundRegion = tireCompoundHardRegion;
-            tireWearRate = 100f / 95f;
-            tireSpeedMultiplier = 0.95f;
+            tireWearRate = 100f / 150f;
+            tireSpeedMultiplier = 1.0f;    // 속도 보정 없음
+            tireTurnMultiplier = 0.85f;    // 회전율 15% 감소
         } else if (tireCompoundMediumRegion != null) {
             tireCompoundRegion = tireCompoundMediumRegion;
-            tireWearRate = 100f / 75f;
+            tireWearRate = 100f / 130f;
             tireSpeedMultiplier = 1.0f;
+            tireTurnMultiplier = 1.0f;
         }
         pitSelectedCompound = comp;
     }
