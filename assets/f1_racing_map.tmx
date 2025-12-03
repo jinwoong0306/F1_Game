@@ -687,31 +687,31 @@
     </properties>
    </object>
   </objectgroup>
-  <objectgroup id="13" name="checkpoints" visible="0">
+  <objectgroup id="13" name="checkpoints">
    <properties>
     <property name="cpIndex" type="int" value="1"/>
    </properties>
-   <object id="70" x="1657.21" y="2212.12" width="494.788" height="8">
+   <object id="70" x="1539.88" y="2212.12" width="648.121" height="8">
     <properties>
      <property name="cpIndex" type="int" value="1"/>
     </properties>
    </object>
-   <object id="71" x="684.606" y="1428" width="439.394" height="20">
+   <object id="71" x="620.606" y="1428" width="579.394" height="20">
     <properties>
      <property name="cpIndex" type="int" value="2"/>
     </properties>
    </object>
-   <object id="74" x="736.121" y="931.152" width="424.242" height="36">
+   <object id="74" x="592.121" y="931.152" width="736.242" height="36">
     <properties>
      <property name="cpIndex" type="int" value="3"/>
     </properties>
    </object>
-   <object id="103" x="1785.64" y="934" width="414.06" height="20" rotation="-90">
+   <object id="103" x="1785.64" y="1075.33" width="634.06" height="20" rotation="-90">
     <properties>
      <property name="cpIndex" type="int" value="4"/>
     </properties>
    </object>
-   <object id="104" x="2313.64" y="1414" width="364.727" height="20" rotation="-90">
+   <object id="104" x="2313.64" y="1414" width="462.06" height="20" rotation="-90">
     <properties>
      <property name="cpIndex" type="int" value="5"/>
     </properties>
@@ -721,22 +721,22 @@
      <property name="cpIndex" type="int" value="6"/>
     </properties>
    </object>
-   <object id="106" x="3209.64" y="1634" width="364.727" height="20" rotation="-90">
+   <object id="106" x="3209.64" y="1634" width="444.727" height="20" rotation="-90">
     <properties>
      <property name="cpIndex" type="int" value="7"/>
     </properties>
    </object>
-   <object id="107" x="3853.64" y="1955.33" width="406.06" height="20" rotation="-90">
+   <object id="107" x="3853.64" y="1999.33" width="614.06" height="20" rotation="-90">
     <properties>
      <property name="cpIndex" type="int" value="8"/>
     </properties>
    </object>
-   <object id="108" x="5113.64" y="1932.67" width="395.394" height="20" rotation="-90">
+   <object id="108" x="4848.3" y="1982" width="550.06" height="20" rotation="-90">
     <properties>
      <property name="cpIndex" type="int" value="9"/>
     </properties>
    </object>
-   <object id="109" x="5101.64" y="3190" width="364.727" height="20" rotation="-90">
+   <object id="109" x="4880.3" y="3360.67" width="715.394" height="20" rotation="-90">
     <properties>
      <property name="cpIndex" type="int" value="10"/>
     </properties>
@@ -777,7 +777,7 @@
    <object id="115" x="780" y="594" width="79" height="73"/>
    <object id="116" x="753" y="679" width="62" height="178"/>
   </objectgroup>
-  <objectgroup id="10" name="Grass">
+  <objectgroup id="10" name="Grass" visible="0">
    <object id="42" x="2062.67" y="2893.33">
     <polygon points="0,0 3104,-5.45455 3107.03,-1035.76 1458.55,-1044.85 1458.55,-835.758 2873.7,-832.727 2867.64,-193.333 207.03,-226.667 204,-972.121 -120.242,-975.152 -38.4242,-944.848 -59.6364,-944.848 -32.3636,-917.576 -14.1818,-887.273 -11.1515,-853.939 -14.1818,-823.636 -14.1818,-53.9394 -14.1818,-32.7273 -14.6667,-11.3333"/>
    </object>
