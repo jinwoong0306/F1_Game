@@ -93,14 +93,15 @@ public class GameScreen implements Screen {
     private final IntMap<RemoteCar> remoteCars = new IntMap<>();
 
     // --- HUD / 미니게임 리소스 ---
-    private SpriteBatch hudBatch;
-    private OrthographicCamera hudCamera;
-    private BitmapFont hudFont;
-    private BitmapFont hudSmallFont;
-    private BitmapFont hudSpeedFont;
-    private BitmapFont hudLapFont; // LAP HUD 전용 큰 폰트
-    private static final float HUD_SPEED_SCALE = 0.60f; // HUD 표기 축소 비율 (최대 약 268 표시)
-    private static final float HUD_SPEED_MAX = 268f;    // HUD 표기 최대치
+private SpriteBatch hudBatch;
+private OrthographicCamera hudCamera;
+private BitmapFont hudFont;
+private BitmapFont hudSmallFont;
+private BitmapFont hudSpeedFont;
+private BitmapFont hudLapFont; // LAP HUD 전용 큰 폰트
+private static final float HUD_SPEED_SCALE = 0.60f; // HUD 표기 축소 비율 (최대 약 268 표시)
+private static final float HUD_SPEED_MAX = 268f;    // HUD 표기 최대치
+    private static final float SPEED_GLOBAL_BOOST = 1.10f; // 모든 타이어에 공통 적용되는 최고속도 +10%
     private GlyphLayout layout = new GlyphLayout();
     private TextureAtlas gameAtlas; // TextureAtlas 참조
     private TextureRegion lapBestBgRegion, lapLastBgRegion;
@@ -144,7 +145,7 @@ public class GameScreen implements Screen {
     private float tireSpeedMultiplier = 1.0f; // 컴파운드별 최고속도 보정
     private float tireTurnMultiplier = 1.0f;  // 컴파운드별 회전력 보정 (hard 회전율 감소용)
     private int currentLap = 0; // 완료된 랩 수 (0부터 시작, 첫 랩 완료 시 1이 됨)
-    private int totalLaps = 3;
+    private int totalLaps = 5;
     private float lapTimeSeconds = 0f;
     private float bestLapTime = -1f;
     private float lastLapTime = -1f;
@@ -687,6 +688,10 @@ public class GameScreen implements Screen {
         // 타이어 컴파운드 속도 보정
         effectiveMaxForward *= tireSpeedMultiplier;
         effectiveMaxReverse *= tireSpeedMultiplier;
+
+        // 글로벌 속도 보정(+10%)
+        effectiveMaxForward *= SPEED_GLOBAL_BOOST;
+        effectiveMaxReverse *= SPEED_GLOBAL_BOOST;
 
         // Grass 페널티 추가 적용
         if (isOnGrass) {
