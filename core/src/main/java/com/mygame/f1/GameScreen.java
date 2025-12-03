@@ -245,7 +245,7 @@ public class GameScreen implements Screen {
         long t0 = System.nanoTime();
         camera = new OrthographicCamera();
         viewport = new FitViewport(VIEW_WIDTH * 2f, VIEW_HEIGHT * 2f, camera);
-        camera.zoom = 0.26f; // 더 가까운 뷰 (0.35 -> 0.30, 약 14% 더 가까이)
+        camera.zoom = 0.22f; // 더 가까운 뷰 (0.35 -> 0.30, 약 14% 더 가까이)
 
         batch = new SpriteBatch();
         hudBatch = new SpriteBatch();
