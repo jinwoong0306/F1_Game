@@ -1043,6 +1043,7 @@ public class GameScreen implements Screen {
         float panelH = pitPanelRegion.getRegionHeight();
         float panelX = (hudCamera.viewportWidth - panelW) * 0.5f;
         float panelY = (hudCamera.viewportHeight - panelH) * 0.5f;
+        float selectionAbovePanel = 12f; // 타이어 선택 슬롯을 패널 위로 살짝 띄움
 
         float barW = pitBarRegion.getRegionWidth();
         float barH = pitBarRegion.getRegionHeight();
@@ -1074,17 +1075,14 @@ public class GameScreen implements Screen {
             float selW = pitTyreSelectRegion.getRegionWidth();
             float selH = pitTyreSelectRegion.getRegionHeight();
             float selX = panelX + (panelW - selW) * 0.5f;
-            float selY = panelY + 20f; // 패널 하단에 위치
+            float selY = panelY + panelH + selectionAbovePanel; // 패널 바로 위쪽에 배치
             hudBatch.draw(pitTyreSelectRegion, selX, selY);
 
-            // 안내 텍스트 (타이어 선택 패널 아래)
-            String instructionText = "Q/W/E = SOFT/MEDIUM/HARD";
-            layout.setText(font, instructionText);
-            float instructionX = selX + (selW - layout.width) / 2f; // 중앙 정렬
-            font.draw(hudBatch, instructionText, instructionX, selY - 8f);
+            // 버튼 텍스트 색상은 아틀라스 이미지에 포함돼 있어 코드로만 변경 불가
+            // 별도 컬러 텍스트가 필요하면 색상이 적용된 새 슬롯/버튼 아틀라스를 추가해야 함
         }
 
-        // 6. 타이밍 바 상태 텍스트 (바 아래)
+        // 6. 타이밍 바 상태 텍스트 (바 아래, 기존 위치)
         String statusText;
         if (pitServiceTimeRemaining > 0f) {
             statusText = String.format("Service: %.1fs", Math.max(0f, pitServiceTimeRemaining));
@@ -1092,8 +1090,16 @@ public class GameScreen implements Screen {
             statusText = "Press ENTER/SPACE";
         }
         layout.setText(font, statusText);
-        float statusX = barX + (barW - layout.width) / 2f; // 중앙 정렬
-        font.draw(hudBatch, statusText, statusX, barY - 32f); // 바 아래 충분한 간격
+        float statusX = barX + (barW - layout.width) / 2f; // 기존처럼 바 기준 중앙
+        float statusY = barY - 32f; // 기존처럼 바 아래 충분한 간격
+        font.draw(hudBatch, statusText, statusX, statusY);
+
+        // 7. 타이어 선택 안내 텍스트: Press 문구 바로 아래 (패널 내부)
+        String instructionText = "Q/W/E = SOFT/MEDIUM/HARD";
+        layout.setText(font, instructionText);
+        float instructionX = statusX; // 동일 x 정렬
+        float instructionY = statusY - 28f; // Press 바로 아래
+        font.draw(hudBatch, instructionText, instructionX, instructionY);
     }
 
     private void drawLapTimeHud() {
