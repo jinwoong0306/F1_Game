@@ -252,9 +252,20 @@ public class MultiplayerResultScreen implements Screen {
     private void returnToLobby() {
         Gdx.app.log("MultiplayerResultScreen", "Returning to lobby");
         // 기존 연결 종료 (ghost player 방지)
-        if (lobbyClient != null && roomId != null) {
-            lobbyClient.leaveRoom(roomId);
-            lobbyClient.close(); // KryoNet 연결 완전히 종료
+        if (lobbyClient != null) {
+            if (roomId != null) {
+                lobbyClient.leaveRoom(roomId);
+            }
+            // leaveRoom 패킷이 전송되도록 짧은 지연 후 연결 종료
+            new Thread(() -> {
+                try {
+                    Thread.sleep(100); // 100ms 대기
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                lobbyClient.close(); // KryoNet 연결 완전히 종료
+                Gdx.app.log("MultiplayerResultScreen", "Connection closed");
+            }).start();
         }
         // 로비 화면으로 돌아가기 (새로운 로비 생성)
         game.setScreen(new MultiplayerPlaceholderScreen(game));
@@ -267,7 +278,16 @@ public class MultiplayerResultScreen implements Screen {
             if (roomId != null) {
                 lobbyClient.leaveRoom(roomId);
             }
-            lobbyClient.close(); // KryoNet 연결 완전히 종료
+            // leaveRoom 패킷이 전송되도록 짧은 지연 후 연결 종료
+            new Thread(() -> {
+                try {
+                    Thread.sleep(100); // 100ms 대기
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                lobbyClient.close(); // KryoNet 연결 완전히 종료
+                Gdx.app.log("MultiplayerResultScreen", "Connection closed on exit");
+            }).start();
         }
         game.setScreen(new MainMenuScreen(game));
     }
