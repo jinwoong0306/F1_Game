@@ -31,6 +31,44 @@ public final class Packets {
     public static class RoomStatePacket { public RoomState state; }
     public static class ErrorResponse { public String message; }
 
+    // Race finish packets
+    /** 플레이어가 레이스 완주 시 서버에 전송 */
+    public static class PlayerFinishedPacket {
+        public String roomId;
+        public int playerId;
+        public float totalTime;
+        public float[] lapTimes;
+    }
+
+    /** 1등 완주 시 서버가 카운트다운 시작 알림 */
+    public static class CountdownStartPacket {
+        public int firstPlacePlayerId;
+        public String firstPlaceUsername;
+        public float firstPlaceTime;
+        public int remainingSeconds; // 10초
+    }
+
+    /** 카운트다운 진행 중 남은 시간 알림 */
+    public static class CountdownUpdatePacket {
+        public int remainingSeconds;
+    }
+
+    /** 레이스 최종 결과 (순위 + FAIL 목록) */
+    public static class RaceResultsPacket {
+        public PlayerResult[] results; // 완주자 순위 (시간 순)
+        public int[] failedPlayerIds; // 미완주자 (FAIL)
+    }
+
+    /** 개별 플레이어 결과 */
+    public static class PlayerResult {
+        public int playerId;
+        public String username;
+        public int rank; // 1, 2, 3...
+        public float totalTime;
+        public float[] lapTimes;
+        public boolean failed; // true면 FAIL
+    }
+
     // Game sync placeholders
     public static class PlayerInputPacket {
         public int playerId; public long timestamp; public float acceleration; public float steering; public boolean braking; public int sequenceNumber;

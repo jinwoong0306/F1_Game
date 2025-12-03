@@ -77,6 +77,8 @@ public class GameServer {
                 onChat(c, msg);
             } else if (object instanceof Packets.PlayerStateUpdate upd) {
                 onPlayerState(c, upd);
+            } else if (object instanceof Packets.PlayerFinishedPacket pkt) {
+                onPlayerFinished(c, pkt);
             }
         } catch (Exception e) {
             Packets.ErrorResponse err = new Packets.ErrorResponse();
@@ -317,6 +319,121 @@ public class GameServer {
         return n.length() > 24 ? n.substring(0, 24) : n;
     }
 
+    private void onPlayerFinished(Connection c, Packets.PlayerFinishedPacket pkt) {
+        String roomId = membership.get(c.getID());
+        if (roomId == null || !roomId.equals(pkt.roomId)) {
+            sendError(c, "not in room");
+            return;
+        }
+        Room room = rooms.get(roomId);
+        if (room == null) return;
+
+        synchronized (room) {
+            // 완주 데이터 저장
+            room.finishedPlayers.put(pkt.playerId, pkt);
+            System.out.printf("[Room %s] Player %d finished with time %.2fs%n", roomId, pkt.playerId, pkt.totalTime);
+
+            // 첫 번째 완주자인 경우 카운트다운 시작
+            if (room.finishedPlayers.size() == 1) {
+                room.firstFinishTime = System.currentTimeMillis();
+                room.countdownActive = true;
+
+                // 첫 번째 완주자 정보 브로드캐스트
+                Packets.PlayerInfo firstPlayer = room.players.get(pkt.playerId);
+                Packets.CountdownStartPacket countdownPkt = new Packets.CountdownStartPacket();
+                countdownPkt.firstPlacePlayerId = pkt.playerId;
+                countdownPkt.firstPlaceUsername = firstPlayer != null ? firstPlayer.username : "Player";
+                countdownPkt.firstPlaceTime = pkt.totalTime;
+                countdownPkt.remainingSeconds = 10;
+
+                for (int connId : room.connectionIds()) {
+                    server.sendToTCP(connId, countdownPkt);
+                }
+
+                // 10초 후 결과 계산 및 전송 스케줄
+                scheduler.schedule(() -> finalizeRace(room), 10, TimeUnit.SECONDS);
+
+                // 카운트다운 업데이트 (1초마다)
+                for (int i = 9; i >= 1; i--) {
+                    final int remaining = i;
+                    scheduler.schedule(() -> {
+                        Packets.CountdownUpdatePacket updatePkt = new Packets.CountdownUpdatePacket();
+                        updatePkt.remainingSeconds = remaining;
+                        for (int connId : room.connectionIds()) {
+                            server.sendToTCP(connId, updatePkt);
+                        }
+                    }, (10 - i), TimeUnit.SECONDS);
+                }
+            }
+        }
+    }
+
+    private void finalizeRace(Room room) {
+        synchronized (room) {
+            // 순위 계산
+            List<Packets.PlayerFinishedPacket> finishedList = new ArrayList<>(room.finishedPlayers.values());
+            finishedList.sort(Comparator.comparingDouble(p -> p.totalTime));
+
+            // 미완주자 목록
+            List<Integer> failedIds = new ArrayList<>();
+            for (Integer playerId : room.players.keySet()) {
+                if (!room.finishedPlayers.containsKey(playerId)) {
+                    failedIds.add(playerId);
+                }
+            }
+
+            // 결과 패킷 생성
+            Packets.RaceResultsPacket resultsPkt = new Packets.RaceResultsPacket();
+            resultsPkt.results = new Packets.PlayerResult[finishedList.size() + failedIds.size()];
+
+            // 완주자
+            for (int i = 0; i < finishedList.size(); i++) {
+                Packets.PlayerFinishedPacket fp = finishedList.get(i);
+                Packets.PlayerInfo pInfo = room.players.get(fp.playerId);
+
+                Packets.PlayerResult result = new Packets.PlayerResult();
+                result.playerId = fp.playerId;
+                result.username = pInfo != null ? pInfo.username : "Player";
+                result.rank = i + 1;
+                result.totalTime = fp.totalTime;
+                result.lapTimes = fp.lapTimes;
+                result.failed = false;
+
+                resultsPkt.results[i] = result;
+            }
+
+            // 미완주자 (FAIL)
+            for (int i = 0; i < failedIds.size(); i++) {
+                int playerId = failedIds.get(i);
+                Packets.PlayerInfo pInfo = room.players.get(playerId);
+
+                Packets.PlayerResult result = new Packets.PlayerResult();
+                result.playerId = playerId;
+                result.username = pInfo != null ? pInfo.username : "Player";
+                result.rank = 0; // FAIL은 순위 없음
+                result.totalTime = 0;
+                result.lapTimes = new float[0];
+                result.failed = true;
+
+                resultsPkt.results[finishedList.size() + i] = result;
+            }
+
+            resultsPkt.failedPlayerIds = failedIds.stream().mapToInt(Integer::intValue).toArray();
+
+            // 모든 플레이어에게 결과 전송
+            for (int connId : room.connectionIds()) {
+                server.sendToTCP(connId, resultsPkt);
+            }
+
+            // 방 상태를 FINISHED로 변경
+            room.phase = Packets.RoomPhase.FINISHED;
+            broadcastRoomState(room);
+
+            System.out.printf("[Room %s] Race finalized. %d finished, %d failed%n",
+                room.id, finishedList.size(), failedIds.size());
+        }
+    }
+
     private static final class Room {
         final String id; final String name; final int maxPlayers;
         final Map<Integer, Packets.PlayerInfo> players = new ConcurrentHashMap<>();
@@ -325,6 +442,11 @@ public class GameServer {
         Packets.RoomPhase phase = Packets.RoomPhase.WAITING;
         int selectedTrackIndex = 0;
         final Map<Integer, Packets.PlayerState> latestStates = new ConcurrentHashMap<>();
+
+        // Race finish tracking
+        final Map<Integer, Packets.PlayerFinishedPacket> finishedPlayers = new ConcurrentHashMap<>();
+        long firstFinishTime = 0;
+        boolean countdownActive = false;
 
         Room(String id, String name, int maxPlayers) {
             this.id = id; this.name = name; this.maxPlayers = maxPlayers;
