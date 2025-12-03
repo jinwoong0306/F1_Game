@@ -52,7 +52,7 @@ import java.util.Set;
 
 public class GameScreen implements Screen {
 
-    private enum GameState { PRE_START, NORMAL, PIT_ENTERING, PIT_MINIGAME, PIT_EXITING }
+    private enum GameState { PRE_START, NORMAL, PIT_ENTERING, PIT_MINIGAME, PIT_EXITING, RACE_FINISHED }
 
     private final Main gameRef;
 
@@ -150,7 +150,7 @@ public class GameScreen implements Screen {
     private int totalCheckpoints = 0;
     private int lastCheckpointIndex = 0;
     private int currentLap = 0;
-    private int totalLaps = 3;
+    private int totalLaps = 10;
     private Set<Integer> checkpointsInside = new HashSet<>();
     private boolean insideStartLine = false;
     private float initialAngle = 0f;
@@ -197,6 +197,7 @@ public class GameScreen implements Screen {
     private float offTimer = 0f;
     private boolean goJustStarted = false;
     private boolean startLightsDone = false;
+    private boolean raceFinished = false;
     public static final float PPM = 100;
     private static final boolean USE_TILED_MAP = true;
 
@@ -303,7 +304,7 @@ public class GameScreen implements Screen {
 
         // 5. Tiled map load and world objects
         if (USE_TILED_MAP) {
-            map = new TmxMapLoader().load("f1_racing_map.tmx");
+            map = new TmxMapLoader().load("neon.tmx");
             mapRenderer = new OrthogonalTiledMapRenderer(map, 1 / PPM);
             
             // [A] 'collision' object layer -> walls
@@ -525,6 +526,11 @@ public class GameScreen implements Screen {
                     currentLap++;
                     lastCheckpointIndex = 0;
                     System.out.println("Lap " + currentLap + " finished");
+                    if (currentLap >= totalLaps) {
+                        raceFinished = true;
+                        gameState = GameState.RACE_FINISHED;
+                        System.out.println("Race finished!");
+                    }
                 }
             } else if (!inStart && insideStartLine) {
                 insideStartLine = false;
@@ -713,14 +719,21 @@ public class GameScreen implements Screen {
         carShape.dispose();
     }
 
-/*************  ✨ Windsurf Command ⭐  *************/
-/*******  68bd98d6-4ed2-4870-a91c-08c9f4e78fa6  *******/
     public void update(float delta) {
         float frameTime = Math.min(delta, 0.25f);
         accumulator += frameTime;
         while (accumulator >= TIME_STEP) {
             world.step(TIME_STEP, 8, 3);
             accumulator -= TIME_STEP;
+        }
+
+        if (raceFinished) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+                if (gameRef != null) gameRef.setScreen(new MainMenuScreen(gameRef)); else Gdx.app.exit();
+            }
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+                if (gameRef != null) gameRef.setScreen(new GameScreen(gameRef)); else Gdx.app.exit();
+            }
         }
 
         if (gameState == GameState.PRE_START) {
@@ -805,7 +818,7 @@ public class GameScreen implements Screen {
             }
         }
 
-        if (gameState == GameState.NORMAL) {
+        if (gameState == GameState.NORMAL || gameState == GameState.RACE_FINISHED) {
             if (pitEntryRect != null && pitEntryRect.contains(playerCar.getPosition())) {
                 gameState = GameState.PIT_ENTERING;
                 playerCar.setLinearVelocity(0, 0);
@@ -880,6 +893,10 @@ public class GameScreen implements Screen {
             }
             playerCar.setAngularVelocity(playerCar.getAngularVelocity() * 0.93f);
         }
+        // 잔디 위에서는 가속을 절반으로 제한
+        if (grassContacts > 0) {
+            targetAcceleration *= 0.7f;
+        }
         currentAcceleration = MathUtils.lerp(currentAcceleration, targetAcceleration, accelerationSmoothness * delta);
         if (Math.abs(currentAcceleration) > 0.1f) {
             Vector2 forceVector = playerCar.getWorldVector(new Vector2(0, currentAcceleration));
@@ -928,10 +945,12 @@ public class GameScreen implements Screen {
         Vector2 forwardNormal = playerCar.getWorldVector(new Vector2(0, 1));
         float forwardSpeed = playerCar.getLinearVelocity().dot(forwardNormal);
         float speed = playerCar.getLinearVelocity().len();
-        if (forwardSpeed > 0 && speed > maxForwardSpeed) {
-            playerCar.setLinearVelocity(playerCar.getLinearVelocity().scl(maxForwardSpeed / speed));
-        } else if (forwardSpeed < 0 && speed > maxReverseSpeed) {
-            playerCar.setLinearVelocity(playerCar.getLinearVelocity().scl(maxReverseSpeed / speed));
+        float forwardCap = maxForwardSpeed * (grassContacts > 0 ? 0.5f : 1f);
+        float reverseCap = maxReverseSpeed * (grassContacts > 0 ? 0.5f : 1f);
+        if (forwardSpeed > 0 && speed > forwardCap) {
+            playerCar.setLinearVelocity(playerCar.getLinearVelocity().scl(forwardCap / speed));
+        } else if (forwardSpeed < 0 && speed > reverseCap) {
+            playerCar.setLinearVelocity(playerCar.getLinearVelocity().scl(reverseCap / speed));
         }
     }
 
@@ -1057,6 +1076,7 @@ public class GameScreen implements Screen {
         drawRaceStatusHud();
         drawPitMinigameHud();
         drawStartLightsHud();
+        drawRaceFinishedHud();
 
         if (paused) drawPauseOverlay();
     }
@@ -1408,6 +1428,33 @@ private void drawDurabilityHud() {
         float lapTotY = centerY + layout.height * 0.4f;
         font.draw(batch, layout, lapTotX, lapTotY);
 
+        batch.end();
+    }
+
+    private void drawRaceFinishedHud() {
+        if (!raceFinished || hudCamera == null) return;
+        BitmapFont font = speedFont != null ? speedFont : debugFont;
+        GlyphLayout layout = new GlyphLayout();
+        String best = (bestLapTime >= 0) ? formatLapTime(bestLapTime) : "--:--.---";
+        String line1 = "RACE FINISHED";
+        String line2 = "Best Lap: " + best;
+        String line3 = "[Enter] Main Menu   [R] Restart";
+        layout.setText(font, line1);
+        float maxW = layout.width;
+        layout.setText(font, line2);
+        maxW = Math.max(maxW, layout.width);
+        layout.setText(font, line3);
+        maxW = Math.max(maxW, layout.width);
+        float x = (hudCamera.viewportWidth - maxW) * 0.5f;
+        float y = (hudCamera.viewportHeight) * 0.7f;
+        batch.setProjectionMatrix(hudCamera.combined);
+        batch.begin();
+        Color prev = font.getColor();
+        font.setColor(Color.WHITE);
+        font.draw(batch, line1, x, y);
+        font.draw(batch, line2, x, y - layout.height - 6f);
+        font.draw(batch, line3, x, y - (layout.height + 6f) * 2f);
+        font.setColor(prev);
         batch.end();
     }
 

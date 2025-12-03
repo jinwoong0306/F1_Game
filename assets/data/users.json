@@ -1,9 +1,33 @@
 [
 {
 	class: com.mygame.f1.data.UserStore$Record
+	username: wkd123
+	salt: pvbN8y+XNCrI6h+Y1Gw2Cw==
+	passwordHash: LvTffh7ZPwqPxYSI+A0tMhMRjy7XdliDMH5lMkGvLQk=
+}
+{
+	class: com.mygame.f1.data.UserStore$Record
 	username: asd
 	salt: B6CJIJc7dAmnZSisbCdugQ==
 	passwordHash: 2BdTcfcDYhb1RepSltnMai3D+1h++jrdZpnqKuxf0JQ=
+}
+{
+	class: com.mygame.f1.data.UserStore$Record
+	username: jin1
+	salt: pGzJ2EgUxDvcRD3DaCHcOw==
+	passwordHash: 2X1/i7RZBjOwy3vtcooHcrDgRHPlT9VKf2txZBVjk0s=
+}
+{
+	class: com.mygame.f1.data.UserStore$Record
+	username: wkd111
+	salt: Ky0TYcS5SjQ5HrACHoEkqA==
+	passwordHash: x4CRWFLz0ouhIiW8nbOPrcKcy2CL0vagXmbQkdgupaM=
+}
+{
+	class: com.mygame.f1.data.UserStore$Record
+	username: 1234
+	salt: HP29WhtO3x5e9nZNz+nIJQ==
+	passwordHash: VgB4XzTYM5zvCwqpWp3SgTUCP4zMwHvchpY/vZM969k=
 }
 {
 	class: com.mygame.f1.data.UserStore$Record
