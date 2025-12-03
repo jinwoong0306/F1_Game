@@ -198,6 +198,7 @@ public class GameScreen implements Screen {
     private static final String MAP_PATH = "f1_racing_map.tmx";
     // Use full path because AssetManager loads under cars/
     private static final String CAR_PATH = "cars/Silverline S11.png";
+    private static final float MAP_RENDER_EXPANSION = 2f;
     // 고정 렌더 크기(로컬/원격 동일 적용)
     private static final float CAR_DRAW_WIDTH = (12.80f * 1.7f) / PPM;
     private static final float CAR_DRAW_HEIGHT = (25.60f * 1.7f) / PPM;
@@ -205,18 +206,18 @@ public class GameScreen implements Screen {
     private static final float VIEW_HEIGHT = 900f / PPM;
     // 멀티플레이 시 기본 스폰 슬롯(첫 번째 맵 기준 요청 값)
     private static final Vector2[] GRID_SPAWNS = new Vector2[]{
-            new Vector2(((87 * 32) + 19) / PPM, (((120 - 92) * 32) - 11) / PPM), // p1: 오른쪽 19px, 뒤로 11px
-            new Vector2(((90 * 32) + 19) / PPM, (((120 - 92) * 32) - 11) / PPM), // p2: 오른쪽 19px, 뒤로 11px
-            new Vector2(((87 * 32) + 19) / PPM, (((120 - 94) * 32) - 11) / PPM), // p3: 오른쪽 19px, 뒤로 11px
-            new Vector2(((90 * 32) + 19) / PPM, (((120 - 94) * 32) - 11) / PPM)  // p4: 오른쪽 19px, 뒤로 11px
+        new Vector2(((87 * 32) + 19) / PPM, (((120 - 92) * 32) - 11) / PPM), // p1: 오른쪽 19px, 뒤로 11px
+        new Vector2(((90 * 32) + 19) / PPM, (((120 - 92) * 32) - 11) / PPM), // p2: 오른쪽 19px, 뒤로 11px
+        new Vector2(((87 * 32) + 19) / PPM, (((120 - 94) * 32) - 11) / PPM), // p3: 오른쪽 19px, 뒤로 11px
+        new Vector2(((90 * 32) + 19) / PPM, (((120 - 94) * 32) - 11) / PPM)  // p4: 오른쪽 19px, 뒤로 11px
     };
     private static final String[] CAR_PATHS = {
-            "cars/Astra A4.png",
-            "cars/Boltworks RX-1.png",
-            "cars/Emerald E7.png",
-            "cars/Gold Rush GT.png",
-            "cars/Midnight P4.png",
-            "cars/Silverline S11.png"
+        "cars/Astra A4.png",
+        "cars/Boltworks RX-1.png",
+        "cars/Emerald E7.png",
+        "cars/Gold Rush GT.png",
+        "cars/Midnight P4.png",
+        "cars/Silverline S11.png"
     };
 
     private final String mapPathOverride;
@@ -409,9 +410,9 @@ public class GameScreen implements Screen {
         goTimer = 0f;
         offTimer = 0f;
         startLightsDone = false;
-            lapTimeSeconds = 0f;
-            lastLapTime = -1f;
-            bestLapTime = -1f;
+        lapTimeSeconds = 0f;
+        lastLapTime = -1f;
+        bestLapTime = -1f;
 
         Gdx.app.log("PERF", String.format("GameScreen.show total: %.2f ms", (System.nanoTime() - t0) / 1_000_000f));
     }
@@ -551,9 +552,7 @@ public class GameScreen implements Screen {
         camera.rotate(cameraAngle);
         camera.update();
 
-        if (USE_TILED_MAP && mapRenderer != null) {
-            mapRenderer.setView(camera);
-        }
+        updateMapRendererView();
     }
 
     private void handleInput(float delta) {
@@ -716,7 +715,7 @@ public class GameScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         if (USE_TILED_MAP && mapRenderer != null) {
-            mapRenderer.setView(camera);
+            updateMapRendererView();
             mapRenderer.render();
         }
 
@@ -746,12 +745,12 @@ public class GameScreen implements Screen {
             float w = CAR_DRAW_WIDTH;
             float h = CAR_DRAW_HEIGHT;
             batch.draw(tex,
-                    rc.position.x - w / 2f, rc.position.y - h / 2f,
-                    w / 2f, h / 2f,
-                    w, h,
-                    1f, 1f,
-                    rc.rotation * MathUtils.radiansToDegrees,
-                    0, 0, tex.getWidth(), tex.getHeight(), false, false);
+                rc.position.x - w / 2f, rc.position.y - h / 2f,
+                w / 2f, h / 2f,
+                w, h,
+                1f, 1f,
+                rc.rotation * MathUtils.radiansToDegrees,
+                0, 0, tex.getWidth(), tex.getHeight(), false, false);
         }
         batch.end();
 
@@ -764,6 +763,20 @@ public class GameScreen implements Screen {
 
         // HUD (간단 표시: 속도/레이스 상태/내구도)
         drawHud(delta);
+    }
+
+    private void updateMapRendererView() {
+        if (!USE_TILED_MAP || mapRenderer == null || camera == null) return;
+
+        float renderWidth = camera.viewportWidth * camera.zoom * MAP_RENDER_EXPANSION;
+        float renderHeight = camera.viewportHeight * camera.zoom * MAP_RENDER_EXPANSION;
+        float centerX = camera.position.x;
+        float centerY = camera.position.y;
+        mapRenderer.setView(camera.combined,
+            centerX - renderWidth / 2f,
+            centerY - renderHeight / 2f,
+            renderWidth,
+            renderHeight);
     }
 
     @Override
@@ -792,7 +805,7 @@ public class GameScreen implements Screen {
         // TextureRegion은 dispose 불필요 (TextureAtlas가 관리)
         // Atlas에 없는 개별 텍스처만 dispose
         disposeTex(minimapFrameTexture, minimapRegion, minimapCarTexture, raceStatusTexture,
-                   durabilityLabelTexture, tireLabelTexture);
+            durabilityLabelTexture, tireLabelTexture);
         if (lobbyClient != null) lobbyClient.onGameState(null);
         for (IntMap.Entry<RemoteCar> e : remoteCars) {
             if (e.value.textureOwned && e.value.texture != null) e.value.texture.dispose();
@@ -892,8 +905,8 @@ public class GameScreen implements Screen {
 
         // 축소된 크기에 맞춰 텍스트 위치 조정 (왼쪽 20px, 위로 7px 추가 이동)
         hudSpeedFont.draw(hudBatch, txt,
-                x + texW * 0.5f - layout.width * 0.5f - 15f - 10f,  // 왼쪽으로 20px 총 이동
-                y + texH * 0.55f + layout.height * 0.5f + 10f - 30f + 7f); // 아래로 30px, 위로 7px 총 이동
+            x + texW * 0.5f - layout.width * 0.5f - 15f - 10f,  // 왼쪽으로 20px 총 이동
+            y + texH * 0.55f + layout.height * 0.5f + 10f - 30f + 7f); // 아래로 30px, 위로 7px 총 이동
 
         // 색상 및 스케일 복원
         hudSpeedFont.setColor(1f, 1f, 1f, 1f); // 흰색
@@ -905,8 +918,8 @@ public class GameScreen implements Screen {
             layout.setText(hudFont, grassWarning);
             hudFont.setColor(1f, 0.5f, 0f, 1f); // 주황색
             hudFont.draw(hudBatch, grassWarning,
-                    x + texW * 0.5f - layout.width * 0.5f,
-                    y - 10f);
+                x + texW * 0.5f - layout.width * 0.5f,
+                y - 10f);
             hudFont.setColor(1f, 1f, 1f, 1f); // 흰색 복원
         }
     }
@@ -1977,7 +1990,7 @@ public class GameScreen implements Screen {
             // 면적 검증
             float area = Math.abs(
                 (triangle[1].x - triangle[0].x) * (triangle[2].y - triangle[0].y) -
-                (triangle[2].x - triangle[0].x) * (triangle[1].y - triangle[0].y)
+                    (triangle[2].x - triangle[0].x) * (triangle[1].y - triangle[0].y)
             ) * 0.5f;
 
             if (area < MIN_AREA) continue;
