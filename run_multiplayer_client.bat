@@ -18,7 +18,7 @@ echo.
 
 REM Windows에서 gradlew.bat 명시적 호출
 if exist gradlew.bat (
-    call gradlew.bat lwjgl3:run
+    call "%~dp0gradlew.bat" lwjgl3:run
 ) else (
     echo ERROR: gradlew.bat not found!
     echo Please make sure you are in the project root directory.
