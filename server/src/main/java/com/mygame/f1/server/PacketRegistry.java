@@ -26,7 +26,16 @@ public final class PacketRegistry {
         kryo.register(Packets.ChatMessage.class);
         kryo.register(Packets.PlayerStateUpdate.class);
 
+        // Race finish packets
+        kryo.register(Packets.PlayerFinishedPacket.class);
+        kryo.register(Packets.CountdownStartPacket.class);
+        kryo.register(Packets.CountdownUpdatePacket.class);
+        kryo.register(Packets.RaceResultsPacket.class);
+        kryo.register(Packets.PlayerResult.class);
+        kryo.register(Packets.PlayerResult[].class);
+
         kryo.register(int[].class);
+        kryo.register(float[].class);
         kryo.register(Packets.PlayerInfo.class);
         kryo.register(Packets.PlayerState.class);
         kryo.register(Packets.RoomState.class);

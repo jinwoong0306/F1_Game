@@ -23,6 +23,11 @@ public class LobbyClient {
     private Consumer<Packets.ChatMessage> chatHandler;
     private Consumer<Packets.GameStatePacket> gameStateHandler;
 
+    // Race finish handlers
+    private Consumer<Packets.CountdownStartPacket> countdownStartHandler;
+    private Consumer<Packets.CountdownUpdatePacket> countdownUpdateHandler;
+    private Consumer<Packets.RaceResultsPacket> raceResultsHandler;
+
     private CompletableFuture<Packets.CreateRoomResponse> createFuture;
     private CompletableFuture<Packets.JoinRoomResponse> joinFuture;
 
@@ -105,12 +110,25 @@ public class LobbyClient {
         client.sendUDP(upd);
     }
 
+    public void sendPlayerFinished(String roomId, int playerId, float totalTime, float[] lapTimes) {
+        Packets.PlayerFinishedPacket pkt = new Packets.PlayerFinishedPacket();
+        pkt.roomId = roomId;
+        pkt.playerId = playerId;
+        pkt.totalTime = totalTime;
+        pkt.lapTimes = lapTimes;
+        client.sendTCP(pkt);
+    }
+
     public void onRoomList(Consumer<List<Packets.RoomState>> handler) { this.roomListHandler = handler; }
     public void onRoomState(Consumer<Packets.RoomState> handler) { this.roomStateHandler = handler; }
     public void onRaceStart(Consumer<Packets.RaceStartPacket> handler) { this.raceStartHandler = handler; }
     public void onError(Consumer<String> handler) { this.errorHandler = handler; }
     public void onChat(Consumer<Packets.ChatMessage> handler) { this.chatHandler = handler; }
     public void onGameState(Consumer<Packets.GameStatePacket> handler) { this.gameStateHandler = handler; }
+
+    public void onCountdownStart(Consumer<Packets.CountdownStartPacket> handler) { this.countdownStartHandler = handler; }
+    public void onCountdownUpdate(Consumer<Packets.CountdownUpdatePacket> handler) { this.countdownUpdateHandler = handler; }
+    public void onRaceResults(Consumer<Packets.RaceResultsPacket> handler) { this.raceResultsHandler = handler; }
 
     private class ClientListener extends Listener {
         @Override public void received(Connection connection, Object object) {
@@ -128,6 +146,12 @@ public class LobbyClient {
                 if (chatHandler != null) chatHandler.accept(msg);
             } else if (object instanceof Packets.GameStatePacket gs) {
                 if (gameStateHandler != null) gameStateHandler.accept(gs);
+            } else if (object instanceof Packets.CountdownStartPacket pkt) {
+                if (countdownStartHandler != null) countdownStartHandler.accept(pkt);
+            } else if (object instanceof Packets.CountdownUpdatePacket pkt) {
+                if (countdownUpdateHandler != null) countdownUpdateHandler.accept(pkt);
+            } else if (object instanceof Packets.RaceResultsPacket pkt) {
+                if (raceResultsHandler != null) raceResultsHandler.accept(pkt);
             } else if (object instanceof Packets.ErrorResponse err) {
                 if (errorHandler != null) errorHandler.accept(err.message);
             }
@@ -152,7 +176,17 @@ public class LobbyClient {
         kryo.register(Packets.StartRaceRequest.class);
         kryo.register(Packets.ChatMessage.class);
         kryo.register(Packets.PlayerStateUpdate.class);
+
+        // Race finish packets
+        kryo.register(Packets.PlayerFinishedPacket.class);
+        kryo.register(Packets.CountdownStartPacket.class);
+        kryo.register(Packets.CountdownUpdatePacket.class);
+        kryo.register(Packets.RaceResultsPacket.class);
+        kryo.register(Packets.PlayerResult.class);
+        kryo.register(Packets.PlayerResult[].class);
+
         kryo.register(int[].class);
+        kryo.register(float[].class);
         kryo.register(Packets.PlayerInfo.class);
         kryo.register(Packets.PlayerState.class);
         kryo.register(Packets.RoomState.class);
