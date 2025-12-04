@@ -206,12 +206,12 @@ public class GameScreen implements Screen {
     private static final float CAR_DRAW_HEIGHT = (25.60f * 1.7f) / PPM;
     private static final float VIEW_WIDTH = 1600f / PPM;
     private static final float VIEW_HEIGHT = 900f / PPM;
-    // 멀티플레이 시 기본 스폰 슬롯(첫 번째 맵 기준 요청 값)
+    // 멀티플레이 시 기본 스폰 슬롯(첫 번째 맵 기준 요청 값) //차량 출발
     private static final Vector2[] GRID_SPAWNS = new Vector2[]{
-            new Vector2(27.95f, 8.86f), // p1: 오른쪽 19px, 뒤로 11px
-            new Vector2(27.95f ,8.22f), // p2: 오른쪽 19px, 뒤로 11px
-            new Vector2(27.95f ,8.22f), // p3: 오른쪽 19px, 뒤로 11px
-            new Vector2(28.91f,8.86f)  // p4: 오른쪽 19px, 뒤로 11px
+            new Vector2(28.05f, 8.86f),
+            new Vector2(28.05f ,8.22f), 
+            new Vector2(29.01f ,8.86f), 
+            new Vector2(29.01f,8.22f)  
     };
     private static final String[] CAR_PATHS = {
             "cars/Astra A4.png",
