@@ -65,6 +65,15 @@ public class GameScreen implements Screen {
     private final Vector2 v2_tmp1 = new Vector2();
     private final Vector2 v2_tmp2 = new Vector2();
 
+    // --- 미니맵 플레이어 색상 (GC 방지) ---
+    private static final Color[] PLAYER_COLORS = {
+        new Color(0.2f, 0.6f, 1f, 1f),    // 밝은 파란색
+        new Color(0.2f, 1f, 0.4f, 1f),    // 밝은 초록색
+        new Color(1f, 0.8f, 0.2f, 1f),    // 노란색
+        new Color(1f, 0.4f, 0.9f, 1f),    // 핑크색
+        new Color(0.5f, 0.5f, 0.5f, 1f)   // 회색 (폴백)
+    };
+
     // --- 물리 시뮬레이션 ---
     private World world;
     private Box2DDebugRenderer box2DDebugRenderer;
@@ -95,6 +104,7 @@ public class GameScreen implements Screen {
     // --- HUD / 미니게임 리소스 ---
     private SpriteBatch hudBatch;
     private OrthographicCamera hudCamera;
+    private OrthographicCamera minimapCamera; // 미니맵 전용 카메라 (GC 방지)
     private BitmapFont hudFont;
     private BitmapFont hudSmallFont;
     private BitmapFont hudSpeedFont;
@@ -397,6 +407,9 @@ public class GameScreen implements Screen {
         hudCamera = new OrthographicCamera();
         hudCamera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         hudCamera.update();
+
+        // 미니맵 카메라 초기화 (재사용)
+        minimapCamera = new OrthographicCamera();
         long hudStart = System.nanoTime();
         initHudResources();
         Gdx.app.log("PERF", String.format("GameScreen HUD init: %.2f ms", (System.nanoTime() - hudStart) / 1_000_000f));
@@ -427,9 +440,10 @@ public class GameScreen implements Screen {
                 gameRef.setScreen(new com.mygame.f1.screens.MultiplayerResultScreen(gameRef, lobbyClient, roomId, pkt));
             }));
 
+            // 상태 전송 빈도: 30Hz (33ms) - 더 부드러운 동기화
             stateSendTask = Timer.schedule(new Timer.Task() {
                 @Override public void run() { sendState(); }
-            }, 0.05f, 0.05f);
+            }, 0.033f, 0.033f);
         }
 
         // 스타트 카운트 초기화
@@ -560,14 +574,16 @@ public class GameScreen implements Screen {
         if (isColliding) {
             playerCar.setLinearDamping(collisionDamping);
             if (playerCar.getLinearVelocity().len() < 0.5f) {
-                Vector2 forwardDirection = playerCar.getWorldVector(new Vector2(0, -0.3f));
+                v2_tmp1.set(0, -0.3f);
+                Vector2 forwardDirection = playerCar.getWorldVector(v2_tmp1);
                 playerCar.applyLinearImpulse(forwardDirection, playerCar.getWorldCenter(), true);
             }
         }
 
-        Vector2 forwardVector = new Vector2(0, cameraOffsetFromCar);
-        Vector2 worldSpaceOffset = playerCar.getWorldVector(forwardVector);
-        Vector2 targetPosition = new Vector2(playerCar.getPosition()).add(worldSpaceOffset);
+        v2_tmp1.set(0, cameraOffsetFromCar);
+        Vector2 worldSpaceOffset = playerCar.getWorldVector(v2_tmp1);
+        v2_tmp2.set(playerCar.getPosition()).add(worldSpaceOffset);
+        Vector2 targetPosition = v2_tmp2;
 
         camera.position.x = MathUtils.lerp(camera.position.x, targetPosition.x, positionSmoothness * delta);
         camera.position.y = MathUtils.lerp(camera.position.y, targetPosition.y, positionSmoothness * delta);
@@ -611,7 +627,8 @@ public class GameScreen implements Screen {
             playerCar.setLinearDamping(defaultLinearDamping);
         }
 
-        Vector2 forwardNormal = playerCar.getWorldVector(new Vector2(0, 1));
+        v2_tmp1.set(0, 1);
+        Vector2 forwardNormal = playerCar.getWorldVector(v2_tmp1);
         float forwardSpeed = playerCar.getLinearVelocity().dot(forwardNormal);
         float currentSpeed = playerCar.getLinearVelocity().len();
 
@@ -631,7 +648,8 @@ public class GameScreen implements Screen {
         currentAcceleration = MathUtils.lerp(currentAcceleration, targetAcceleration, accelerationSmoothness * delta);
 
         if (Math.abs(currentAcceleration) > 0.1f) {
-            Vector2 forceVector = playerCar.getWorldVector(new Vector2(0, currentAcceleration));
+            v2_tmp1.set(0, currentAcceleration);
+            Vector2 forceVector = playerCar.getWorldVector(v2_tmp1);
             playerCar.applyForceToCenter(forceVector, true);
         }
 
@@ -653,7 +671,8 @@ public class GameScreen implements Screen {
         float targetAngularVelocity = 0;
         float baseMaxAngularVelocity = MathUtils.degreesToRadians * 190;
 
-        Vector2 forwardNormal = playerCar.getWorldVector(new Vector2(0, 1));
+        v2_tmp1.set(0, 1);
+        Vector2 forwardNormal = playerCar.getWorldVector(v2_tmp1);
         float forwardSpeed = playerCar.getLinearVelocity().dot(forwardNormal);
         boolean movingForward = Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.W);
         boolean movingReverse = Gdx.input.isKeyPressed(Input.Keys.DOWN) || Gdx.input.isKeyPressed(Input.Keys.S);
@@ -695,7 +714,8 @@ public class GameScreen implements Screen {
     }
 
     private void limitSpeed() {
-        Vector2 forwardNormal = playerCar.getWorldVector(new Vector2(0, 1));
+        v2_tmp1.set(0, 1);
+        Vector2 forwardNormal = playerCar.getWorldVector(v2_tmp1);
         float forwardSpeed = playerCar.getLinearVelocity().dot(forwardNormal);
         float speed = playerCar.getLinearVelocity().len();
 
@@ -856,8 +876,7 @@ public class GameScreen implements Screen {
 
     private void drawHud(float delta) {
         if (hudBatch == null || hudCamera == null) return;
-        hudCamera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        hudCamera.update();
+        // setToOrtho()는 resize()에서만 호출 (성능 최적화)
         hudBatch.setProjectionMatrix(hudCamera.combined);
 
         hudBatch.begin();
@@ -1321,17 +1340,8 @@ public class GameScreen implements Screen {
      * playerId를 직접 사용하여 색상을 결정 (더 안정적)
      */
     private Color getPlayerColor(int playerId) {
-        // playerId를 4로 나눈 나머지로 색상 결정 (0~3)
-        int colorIndex = playerId % 4;
-
-        // 4명 플레이어를 위한 구분 가능한 색상 팔레트
-        switch (colorIndex) {
-            case 0: return new Color(0.2f, 0.6f, 1f, 1f);    // 밝은 파란색
-            case 1: return new Color(0.2f, 1f, 0.4f, 1f);    // 밝은 초록색
-            case 2: return new Color(1f, 0.8f, 0.2f, 1f);    // 노란색
-            case 3: return new Color(1f, 0.4f, 0.9f, 1f);    // 핑크색
-            default: return new Color(0.5f, 0.5f, 0.5f, 1f); // 회색 (폴백)
-        }
+        // static 배열에서 재사용 (매 프레임 Color 객체 생성 방지)
+        return PLAYER_COLORS[playerId % PLAYER_COLORS.length];
     }
 
     private void drawMinimapHud() {
@@ -1371,8 +1381,7 @@ public class GameScreen implements Screen {
 
         // Tiled 맵을 미니맵 영역에 렌더링
         if (mapRenderer != null && map != null && mapW > 0 && mapH > 0) {
-            // 미니맵용 임시 카메라 설정 (맵 전체를 보도록)
-            OrthographicCamera minimapCamera = new OrthographicCamera();
+            // 미니맵용 카메라 재사용 (GC 방지)
             minimapCamera.setToOrtho(false, mapW, mapH);
             minimapCamera.position.set(mapW / 2f, mapH / 2f, 0);
             minimapCamera.zoom = 1.0f; // 전체 맵이 보이도록
@@ -1821,6 +1830,7 @@ public class GameScreen implements Screen {
 
     private void handleGameState(Packets.GameStatePacket gs) {
         if (gs == null || gs.playerStates == null) return;
+        long currentTime = System.currentTimeMillis();
         for (Packets.PlayerState ps : gs.playerStates) {
             if (ps.playerId == selfId) continue;
             RemoteCar rc = remoteCars.get(ps.playerId);
@@ -1832,8 +1842,18 @@ public class GameScreen implements Screen {
                 rc.textureOwned = rc.texture != null && rc.texture != carTexture;
                 remoteCars.put(ps.playerId, rc);
             }
+            // 이전 목표 위치/회전 저장 (보간용)
+            rc.prevTargetPosition.set(rc.targetPosition);
+            rc.prevTargetRotation = rc.targetRotation;
+            // 새 목표 위치/회전 설정
             rc.targetPosition.set(ps.x, ps.y);
             rc.targetRotation = ps.rotation;
+            // 속도 정보 저장 (외삽용)
+            rc.velocity.set(ps.velocityX, ps.velocityY);
+            rc.angularVelocity = ps.angularVelocity;
+            // 시간 정보 업데이트
+            rc.lastUpdateTime = currentTime;
+            rc.timeSinceUpdate = 0f;
             if (!rc.initialized) {
                 rc.position.set(rc.targetPosition);
                 rc.rotation = rc.targetRotation;
@@ -2196,15 +2216,48 @@ public class GameScreen implements Screen {
 
     // updateGrassZoneCheck() 메서드 제거됨 - Box2D ContactListener에서 자동 처리
 
+    // 네트워크 업데이트 간격 (서버 브로드캐스트 주기)
+    private static final float NETWORK_UPDATE_INTERVAL = 0.033f; // ~30Hz (33ms)
+    // 외삽 최대 시간 (이 시간 이상 지나면 외삽 중지)
+    private static final float MAX_EXTRAPOLATION_TIME = 0.15f; // 150ms
+
     private void updateRemoteCars(float delta) {
-        // 보간 속도를 20으로 설정하여 끊김 현상 완화
-        float lerp = MathUtils.clamp(delta * 20f, 0f, 1f);
         for (IntMap.Entry<RemoteCar> e : remoteCars) {
             RemoteCar rc = e.value;
             if (!rc.initialized) continue;
-            rc.position.lerp(rc.targetPosition, lerp);
-            rc.rotation = MathUtils.lerpAngle(rc.rotation, rc.targetRotation, lerp);
+
+            rc.timeSinceUpdate += delta;
+
+            // 외삽 + 보간 혼합 방식
+            if (rc.timeSinceUpdate < NETWORK_UPDATE_INTERVAL) {
+                // 새 데이터 도착 직후: 목표 위치로 부드럽게 보간
+                float t = rc.timeSinceUpdate / NETWORK_UPDATE_INTERVAL;
+                t = smoothstep(t); // 더 부드러운 보간을 위한 smoothstep
+
+                // 이전 목표에서 새 목표로 보간
+                rc.position.x = MathUtils.lerp(rc.prevTargetPosition.x, rc.targetPosition.x, t);
+                rc.position.y = MathUtils.lerp(rc.prevTargetPosition.y, rc.targetPosition.y, t);
+                rc.rotation = MathUtils.lerpAngle(rc.prevTargetRotation, rc.targetRotation, t);
+            } else if (rc.timeSinceUpdate < MAX_EXTRAPOLATION_TIME) {
+                // 네트워크 지연 시: 속도 기반 외삽
+                float extrapolationTime = rc.timeSinceUpdate - NETWORK_UPDATE_INTERVAL;
+
+                // 속도 기반 위치 예측 (감쇠 적용)
+                float damping = 1.0f - (extrapolationTime / MAX_EXTRAPOLATION_TIME) * 0.5f;
+                v2_tmp1.set(rc.velocity).scl(extrapolationTime * damping);
+                rc.position.set(rc.targetPosition).add(v2_tmp1);
+
+                // 각속도 기반 회전 예측
+                rc.rotation = rc.targetRotation + rc.angularVelocity * extrapolationTime * damping;
+            }
+            // MAX_EXTRAPOLATION_TIME 초과 시: 마지막 외삽 위치 유지 (더 이상 움직이지 않음)
         }
+    }
+
+    // Smoothstep 함수: 더 자연스러운 보간을 위한 이징 함수
+    private float smoothstep(float t) {
+        t = MathUtils.clamp(t, 0f, 1f);
+        return t * t * (3f - 2f * t);
     }
 
     private Texture loadCarTexture(int vehicleIndex) {
@@ -2327,8 +2380,14 @@ public class GameScreen implements Screen {
         int vehicleIndex;
         final Vector2 position = new Vector2();
         final Vector2 targetPosition = new Vector2();
+        final Vector2 velocity = new Vector2();        // 속도 정보 (외삽용)
+        final Vector2 prevTargetPosition = new Vector2(); // 이전 목표 위치 (보간용)
         float rotation;
         float targetRotation;
+        float prevTargetRotation;                       // 이전 목표 회전 (보간용)
+        float angularVelocity;                          // 각속도 (외삽용)
+        long lastUpdateTime;                            // 마지막 업데이트 시간
+        float timeSinceUpdate;                          // 마지막 업데이트 이후 경과 시간
         Texture texture;
         boolean textureOwned;
         boolean initialized = false;

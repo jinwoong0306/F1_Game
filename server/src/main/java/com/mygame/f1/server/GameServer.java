@@ -38,7 +38,7 @@ public class GameServer {
         Kryo kryo = server.getKryo();
         PacketRegistry.register(kryo);
         server.addListener(new ServerListener());
-        scheduler.scheduleAtFixedRate(this::broadcastStates, 50, 50, TimeUnit.MILLISECONDS); // 20Hz
+        scheduler.scheduleAtFixedRate(this::broadcastStates, 33, 33, TimeUnit.MILLISECONDS); // 30Hz (더 부드러운 동기화)
     }
 
     public void start() throws IOException {

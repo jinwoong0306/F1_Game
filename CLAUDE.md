@@ -10,36 +10,45 @@ F1 2D 레이싱 게임은 libGDX 기반의 탑다운 포뮬러 1 레이싱 게�
 
 ## 빌드 명령어
 
+> **Windows**: `gradlew` 사용, **macOS/Linux**: `./gradlew` 사용
+
 ```bash
 # 전체 프로젝트 빌드
-./gradlew build
+gradlew build
 
 # 데스크톱 클라이언트 실행
-./gradlew lwjgl3:run
+gradlew lwjgl3:run
 
 # 전용 서버 실행 (TCP 54555, UDP 54777)
-./gradlew server:run
+gradlew server:run
 
 # 커스텀 포트로 서버 실행
-./gradlew server:run --args="54555 54777"
+gradlew server:run --args="54555 54777"
+
+# 특정 모듈만 컴파일 (빠른 검증)
+gradlew :core:compileJava
+gradlew :server:compileJava
 
 # UI 텍스처를 아틀라스로 패킹 (raw-ui/ -> atlas/game_ui.atlas)
-./gradlew lwjgl3:packAtlas
+gradlew lwjgl3:packAtlas
 
 # 배포용 JAR 빌드
-./gradlew lwjgl3:dist
+gradlew lwjgl3:dist
 # 출력: lwjgl3/build/libs/My-f1-Game-1.0.0.jar
 
 # 플랫폼별 JAR (파일 크기 감소)
-./gradlew lwjgl3:jarWin    # Windows
-./gradlew lwjgl3:jarMac    # macOS
-./gradlew lwjgl3:jarLinux  # Linux
+gradlew lwjgl3:jarWin    # Windows
+gradlew lwjgl3:jarMac    # macOS
+gradlew lwjgl3:jarLinux  # Linux
 
 # 테스트 실행
-./gradlew test
+gradlew test
+
+# 단일 테스트 클래스 실행
+gradlew test --tests "com.mygame.f1.SomeTest"
 
 # IDEA 프로젝트 파일 생성
-./gradlew idea
+gradlew idea
 ```
 
 ## 프로젝트 구조 (멀티 모듈)
@@ -267,15 +276,15 @@ public class SomeScreen implements Screen {
 ## 테스트
 
 ### 로컬 멀티플레이어 테스트
-1. 서버 시작: `./gradlew server:run`
-2. 클라이언트 1 시작: `./gradlew lwjgl3:run`
-3. 클라이언트 2 시작: `./gradlew lwjgl3:run` (별도 터미널에서)
+1. 서버 시작: `gradlew server:run`
+2. 클라이언트 1 시작: `gradlew lwjgl3:run`
+3. 클라이언트 2 시작: `gradlew lwjgl3:run` (별도 터미널에서)
 4. 두 클라이언트: 로그인 → MULTI PLAY → 방 생성/참가
 5. 차량 선택, 준비 표시, 호스트가 레이스 시작
 
 ### 디버그 설정
-- Box2D 메모리 디버깅: `./gradlew lwjgl3:run -Dbox2d.debugMemory=true`
-- 상세 로깅: `./gradlew lwjgl3:run --info`
+- Box2D 메모리 디버깅: `gradlew lwjgl3:run -Dbox2d.debugMemory=true`
+- 상세 로깅: `gradlew lwjgl3:run --info`
 - `server:run` 중 콘솔에 서버 로그 표시
 
 ## 주요 설정
@@ -327,6 +336,18 @@ public class SomeScreen implements Screen {
 | 사용자 인증 | [UserStore.java](core/src/main/java/com/mygame/f1/data/UserStore.java) |
 | 에셋 관리 | [Main.java](core/src/main/java/com/mygame/f1/Main.java) (create 메서드) |
 | 서버 설정 | [ServerLauncher.java](server/src/main/java/com/mygame/f1/server/ServerLauncher.java), [GameServer.java](server/src/main/java/com/mygame/f1/server/GameServer.java) |
+
+## Git 브랜치 전략
+
+- **main**: 안정 버전 (배포용)
+- **feature/singleplay-polish**: 싱글플레이 기능 개선
+- **feature/multiplayer-core**: 멀티플레이어 핵심 기능 개발
+
+커밋 메시지 규칙:
+- `feat:` 새로운 기능 추가
+- `fix:` 버그 수정
+- `refactor:` 리팩토링
+- `docs:` 문서 수정
 
 ## 언어 관련 참고사항
 
