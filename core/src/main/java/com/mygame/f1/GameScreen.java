@@ -745,14 +745,18 @@ public class GameScreen implements Screen {
         }
     }
 
+    // 재사용 벡터 (GC 방지)
+    private static final Vector2 LATERAL_DIR = new Vector2(1, 0);
+    private static final Vector2 FORWARD_DIR = new Vector2(0, 1);
+
     private Vector2 getLateralVelocity() {
-        v2_tmp1.set(playerCar.getWorldVector(new Vector2(1, 0)));
+        v2_tmp1.set(playerCar.getWorldVector(LATERAL_DIR.set(1, 0)));
         float rightSpeed = playerCar.getLinearVelocity().dot(v2_tmp1);
         return v2_tmp1.scl(rightSpeed);
     }
 
     private Vector2 getForwardVelocity() {
-        v2_tmp2.set(playerCar.getWorldVector(new Vector2(0, 1)));
+        v2_tmp2.set(playerCar.getWorldVector(FORWARD_DIR.set(0, 1)));
         float forwardSpeed = playerCar.getLinearVelocity().dot(v2_tmp2);
         return v2_tmp2.scl(forwardSpeed);
     }
@@ -1376,39 +1380,12 @@ public class GameScreen implements Screen {
         float offsetX = (mapAreaW - renderW) / 2f;
         float offsetY = (mapAreaH - renderH) / 2f;
 
-        // HUD 배치 종료하고 Tiled 맵 렌더링
-        hudBatch.end();
-
-        // Tiled 맵을 미니맵 영역에 렌더링
-        if (mapRenderer != null && map != null && mapW > 0 && mapH > 0) {
-            // 미니맵용 카메라 재사용 (GC 방지)
-            minimapCamera.setToOrtho(false, mapW, mapH);
-            minimapCamera.position.set(mapW / 2f, mapH / 2f, 0);
-            minimapCamera.zoom = 1.0f; // 전체 맵이 보이도록
-            minimapCamera.update();
-
-            // 뷰포트 설정 (미니맵 영역만 렌더링하도록 제한)
-            Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
-            int scissorX = (int)(mapAreaX + offsetX);
-            int scissorY = (int)(mapAreaY + offsetY);
-            int scissorW = (int)renderW;
-            int scissorH = (int)renderH;
-            Gdx.gl.glScissor(scissorX, scissorY, scissorW, scissorH);
-
-            // 뷰포트를 미니맵 영역으로 설정
-            Gdx.gl.glViewport(scissorX, scissorY, scissorW, scissorH);
-
-            // Tiled 맵 렌더링 (전체 맵)
-            mapRenderer.setView(minimapCamera);
-            mapRenderer.render();
-
-            // 뷰포트를 원래대로 복원
-            Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-            Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
+        // 미니맵 배경 (간단한 어두운 배경 - Tiled 맵 렌더링 제거로 성능 향상)
+        // 기존: 매 프레임 Tiled 맵 전체를 미니맵에 다시 렌더링 (매우 비효율적)
+        // 개선: 배경 텍스처만 사용하거나 생략 (플레이어 위치만 표시)
+        if (minimapRegion != null) {
+            hudBatch.draw(minimapRegion, mapAreaX + offsetX, mapAreaY + offsetY, renderW, renderH);
         }
-
-        // HUD 배치 재개
-        hudBatch.begin();
 
         // 플레이어 위치 표시
         if (minimapCarTexture != null && playerCar != null) {
@@ -1596,10 +1573,10 @@ public class GameScreen implements Screen {
         } else if (gameState == GameState.PIT_EXITING) {
             if (pitExitPos != null) {
                 Vector2 pos = playerCar.getPosition();
-                Vector2 dir = new Vector2(pitExitPos).sub(pos);
-                if (dir.len() > 0.01f) {
-                    dir.nor().scl(0.5f);
-                    playerCar.setLinearVelocity(dir);
+                v2_tmp1.set(pitExitPos).sub(pos); // 재사용 벡터 사용 (GC 방지)
+                if (v2_tmp1.len() > 0.01f) {
+                    v2_tmp1.nor().scl(0.5f);
+                    playerCar.setLinearVelocity(v2_tmp1);
                 } else {
                     playerCar.setTransform(pitExitPos, pitExitAngleDeg * MathUtils.degreesToRadians);
                     gameState = GameState.NORMAL;
