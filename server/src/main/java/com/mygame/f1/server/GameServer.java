@@ -38,7 +38,7 @@ public class GameServer {
         Kryo kryo = server.getKryo();
         PacketRegistry.register(kryo);
         server.addListener(new ServerListener());
-        scheduler.scheduleAtFixedRate(this::broadcastStates, 50, 50, TimeUnit.MILLISECONDS); // 20Hz
+        scheduler.scheduleAtFixedRate(this::broadcastStates, 33, 33, TimeUnit.MILLISECONDS); // 30Hz (더 부드러운 동기화)
     }
 
     public void start() throws IOException {
@@ -49,7 +49,11 @@ public class GameServer {
 
     private class ServerListener extends Listener {
         @Override public void connected(Connection connection) {
-            System.out.printf("connected: %d%n", connection.getID());
+            // Keep-Alive 설정: 8초마다 하트비트 전송
+            connection.setKeepAliveTCP(8000);
+            // Timeout 설정: 20초 동안 응답 없으면 연결 종료 (ghost player 방지)
+            connection.setTimeout(20000);
+            System.out.printf("connected: %d (keep-alive=8s, timeout=20s)%n", connection.getID());
         }
 
         @Override public void disconnected(Connection connection) {

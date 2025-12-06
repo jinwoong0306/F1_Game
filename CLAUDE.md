@@ -8,38 +8,51 @@ F1 2D 레이싱 게임은 libGDX 기반의 탑다운 포뮬러 1 레이싱 게�
 
 **기술 스택**: Java 17, libGDX 1.13.1, Box2D, KryoNet 2.22.0-RC1, Gradle 8.5+
 
+**프로젝트 상태**: Phase 4 완료 (멀티플레이 핵심 기능 구현), Phase 5 진행 중 (폴리싱)
+
+**최종 업데이트**: 2025-12-04
+
 ## 빌드 명령어
+
+> **Windows**: `gradlew` 사용, **macOS/Linux**: `./gradlew` 사용
 
 ```bash
 # 전체 프로젝트 빌드
-./gradlew build
+gradlew build
 
 # 데스크톱 클라이언트 실행
-./gradlew lwjgl3:run
+gradlew lwjgl3:run
 
 # 전용 서버 실행 (TCP 54555, UDP 54777)
-./gradlew server:run
+gradlew server:run
 
 # 커스텀 포트로 서버 실행
-./gradlew server:run --args="54555 54777"
+gradlew server:run --args="54555 54777"
+
+# 특정 모듈만 컴파일 (빠른 검증)
+gradlew :core:compileJava
+gradlew :server:compileJava
 
 # UI 텍스처를 아틀라스로 패킹 (raw-ui/ -> atlas/game_ui.atlas)
-./gradlew lwjgl3:packAtlas
+gradlew lwjgl3:packAtlas
 
 # 배포용 JAR 빌드
-./gradlew lwjgl3:dist
+gradlew lwjgl3:dist
 # 출력: lwjgl3/build/libs/My-f1-Game-1.0.0.jar
 
 # 플랫폼별 JAR (파일 크기 감소)
-./gradlew lwjgl3:jarWin    # Windows
-./gradlew lwjgl3:jarMac    # macOS
-./gradlew lwjgl3:jarLinux  # Linux
+gradlew lwjgl3:jarWin    # Windows
+gradlew lwjgl3:jarMac    # macOS
+gradlew lwjgl3:jarLinux  # Linux
 
 # 테스트 실행
-./gradlew test
+gradlew test
+
+# 단일 테스트 클래스 실행
+gradlew test --tests "com.mygame.f1.SomeTest"
 
 # IDEA 프로젝트 파일 생성
-./gradlew idea
+gradlew idea
 ```
 
 ## 프로젝트 구조 (멀티 모듈)
@@ -267,31 +280,40 @@ public class SomeScreen implements Screen {
 ## 테스트
 
 ### 로컬 멀티플레이어 테스트
-1. 서버 시작: `./gradlew server:run`
-2. 클라이언트 1 시작: `./gradlew lwjgl3:run`
-3. 클라이언트 2 시작: `./gradlew lwjgl3:run` (별도 터미널에서)
+1. 서버 시작: `gradlew server:run`
+2. 클라이언트 1 시작: `gradlew lwjgl3:run`
+3. 클라이언트 2 시작: `gradlew lwjgl3:run` (별도 터미널에서)
 4. 두 클라이언트: 로그인 → MULTI PLAY → 방 생성/참가
 5. 차량 선택, 준비 표시, 호스트가 레이스 시작
 
 ### 디버그 설정
-- Box2D 메모리 디버깅: `./gradlew lwjgl3:run -Dbox2d.debugMemory=true`
-- 상세 로깅: `./gradlew lwjgl3:run --info`
+- Box2D 메모리 디버깅: `gradlew lwjgl3:run -Dbox2d.debugMemory=true`
+- 상세 로깅: `gradlew lwjgl3:run --info`
 - `server:run` 중 콘솔에 서버 로그 표시
 
 ## 주요 설정
 
 ### 물리 튜닝 (GameScreen.java)
-- `maxForwardSpeed`: 3.5 m/s (기본값, 타이어 컴파운드에 따라 수정됨)
+- `maxForwardSpeed`: 4.0 m/s (기본값, 타이어 컴파운드에 따라 수정됨)
 - `acceleration`: 차량별 설정 (높을수록 빠른 가속)
+- `accelerationRampUp`: 0.03 (느린 가속 커브)
 - `lateralFriction`: 미끄러짐 억제, 조향 시 감소
 - `airResistance`: 속도에 비례 (자연스러운 감속)
 - `angularDamping`: 회전 스무딩
-- `brakeLinearDamping`: 급정지 없는 부드러운 브레이크
+- `brakeLinearDamping`: 급정지 없는 부드러운 브레이크 (SHIFT 키)
+
+### 타이어 컴파운드 설정
+- **Soft**: 마모율 90초, 최고속도 +12%, 회전력 기본
+- **Medium**: 마모율 130초, 기본 성능
+- **Hard**: 마모율 150초, 회전력 -15%
+- 내구도 0 이하 시 최고 속도 30% 제한
 
 ### 네트워크 설정
 - 서버 포트: TCP 54555, UDP 54777 (인자로 설정 가능)
 - 클라이언트 타임아웃: 30000ms (30초)
 - 상태 브로드캐스트 빈도: 20Hz (50ms 간격)
+- Keep-alive: 8초, Timeout: 20초 (고스트 플레이어 방지)
+- 보간 계수: 20 (0.05f) - 원격 차량 부드러운 이동
 - 스레드 모델: `ThreadedListener` (백그라운드 스레드에서 패킷 처리)
 
 ### 렌더링 설정 (Lwjgl3Launcher.java)
@@ -302,9 +324,12 @@ public class SomeScreen implements Screen {
 
 ## 문서 참조
 
-`docs/` 디렉토리의 상세 문서:
-- [PROJECT-OVERVIEW.md](docs/specs/PROJECT-OVERVIEW.md) - 프로젝트 전체 비전
-- [PHASES.md](docs/PHASES.md) - 개발 로드맵
+**프로젝트 루트**:
+- [PHASES.md](PHASES.md) - 개발 단계별 체크리스트 (Phase 0-5)
+- [PROGRESS.md](PROGRESS.md) - 통합 진행 기록 및 변경 이력
+- [README.md](README.md) - 프로젝트 소개 및 빠른 시작
+
+**스펙 문서** (`docs/specs/`):
 - [VEHICLE-PHYSICS.md](docs/specs/gameplay/VEHICLE-PHYSICS.md) - 물리 시스템 상세
 - [TIRE-SYSTEM.md](docs/specs/gameplay/TIRE-SYSTEM.md) - 타이어 마모 메커니즘
 - [PITSTOP-MINIGAME.md](docs/specs/gameplay/PITSTOP-MINIGAME.md) - 피트스톱 구현
@@ -327,6 +352,18 @@ public class SomeScreen implements Screen {
 | 사용자 인증 | [UserStore.java](core/src/main/java/com/mygame/f1/data/UserStore.java) |
 | 에셋 관리 | [Main.java](core/src/main/java/com/mygame/f1/Main.java) (create 메서드) |
 | 서버 설정 | [ServerLauncher.java](server/src/main/java/com/mygame/f1/server/ServerLauncher.java), [GameServer.java](server/src/main/java/com/mygame/f1/server/GameServer.java) |
+
+## Git 브랜치 전략
+
+- **main**: 안정 버전 (배포용)
+- **feature/multiplayer-core**: 멀티플레이어 핵심 기능 개발 (현재 활성 브랜치)
+
+커밋 메시지 규칙:
+- `Feat:` 새로운 기능 추가
+- `Fix:` 버그 수정
+- `Perf:` 성능 최적화
+- `Refactor:` 리팩토링
+- `Docs:` 문서 수정
 
 ## 언어 관련 참고사항
 

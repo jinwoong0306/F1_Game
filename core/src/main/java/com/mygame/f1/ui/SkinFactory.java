@@ -126,6 +126,10 @@ public final class SkinFactory {
         btn.fontColor = Palette.TEXT;
         skin.add("default", btn);
 
+        // ImageTextButton default style
+        ImageTextButton.ImageTextButtonStyle imgBtn = new ImageTextButton.ImageTextButtonStyle(btn);
+        skin.add("default", imgBtn);
+
         // menu styles reuse default but with image slots
         ImageTextButton.ImageTextButtonStyle menuMain = new ImageTextButton.ImageTextButtonStyle(btn);
         skin.add("menu-main-icon", menuMain);
