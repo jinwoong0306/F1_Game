@@ -33,6 +33,7 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.math.Ellipse;
 import com.badlogic.gdx.physics.box2d.*;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
@@ -49,6 +50,8 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Comparator;
+import java.util.Map;
+import java.util.TreeMap;
 import com.mygame.f1.network.LobbyClient;
 import com.mygame.f1.shared.Packets;
 
@@ -64,15 +67,6 @@ public class GameScreen implements Screen {
     // --- 재사용 변수 (성능 최적화) ---
     private final Vector2 v2_tmp1 = new Vector2();
     private final Vector2 v2_tmp2 = new Vector2();
-
-    // --- 미니맵 플레이어 색상 (GC 방지) ---
-    private static final Color[] PLAYER_COLORS = {
-        new Color(0.2f, 0.6f, 1f, 1f),    // 밝은 파란색
-        new Color(0.2f, 1f, 0.4f, 1f),    // 밝은 초록색
-        new Color(1f, 0.8f, 0.2f, 1f),    // 노란색
-        new Color(1f, 0.4f, 0.9f, 1f),    // 핑크색
-        new Color(0.5f, 0.5f, 0.5f, 1f)   // 회색 (폴백)
-    };
 
     // --- 물리 시뮬레이션 ---
     private World world;
@@ -104,13 +98,10 @@ public class GameScreen implements Screen {
     // --- HUD / 미니게임 리소스 ---
     private SpriteBatch hudBatch;
     private OrthographicCamera hudCamera;
-    private OrthographicCamera minimapCamera; // 미니맵 전용 카메라 (GC 방지)
     private BitmapFont hudFont;
     private BitmapFont hudSmallFont;
     private BitmapFont hudSpeedFont;
     private BitmapFont hudLapFont; // LAP HUD 전용 큰 폰트
-    private static final float HUD_SPEED_SCALE = 0.60f; // HUD 표기 축소 비율 (최대 약 268 표시)
-    private static final float HUD_SPEED_MAX = 268f;    // HUD 표기 최대치
     private GlyphLayout layout = new GlyphLayout();
     private TextureAtlas gameAtlas; // TextureAtlas 참조
     private TextureRegion lapBestBgRegion, lapLastBgRegion;
@@ -150,16 +141,13 @@ public class GameScreen implements Screen {
     // 내구도 연동
     private float vehicleDurability = 100f; // 차량 내구도
     private float tireDurability = 100f;
-    private float tireWearRate = 0.15f; // 기본 마모율 (초당 15%/100초 소진 기준) - 실제 계산은 getCompoundWearRate() 사용
-    private float tireSpeedMultiplier = 1.0f; // 컴파운드별 최고속도 보정
-    private float tireTurnMultiplier = 1.0f;  // 컴파운드별 회전력 보정 (hard 회전율 감소용)
+    private float tireWearRate = 0.15f; // 기본 마모율 (초당 15%/100초 소진 기준)
     private int currentLap = 0; // 완료된 랩 수 (0부터 시작, 첫 랩 완료 시 1이 됨)
     private int totalLaps = 3;
     private float lapTimeSeconds = 0f;
     private float bestLapTime = -1f;
     private float lastLapTime = -1f;
     private float totalRaceTime = 0f;  // 전체 레이스 시간 (모든 랩의 합)
-    private List<Float> completedLapTimes = new ArrayList<>(); // 완료된 각 랩의 시간 기록
     private List<Checkpoint> checkpoints = new ArrayList<>();
     private Rectangle startLineBounds;
     private int totalCheckpoints = 0;
@@ -177,12 +165,8 @@ public class GameScreen implements Screen {
     private Stage pauseStage;
     private Skin pauseSkin;
 
-    // --- Multiplayer Race Finish Countdown ---
-    private int raceFinishCountdown = -1; // -1 = 표시 안함, 0~10 = 카운트다운 숫자
-    private String firstPlacePlayer = "";
-
     // --- 물리 파라미터 ---
-    private float maxForwardSpeed = 4.0f;  // 약 15% 상향
+    private float maxForwardSpeed = 3.5f;  // 2.7 * 1.3 = 3.51 (~3.5) (30% 증가)
     private float maxReverseSpeed = 1.3f;  // 1.0 * 1.3 = 1.3 (30% 증가)
     private float forwardAcceleration = 1.7f;  // 가속력은 유지
     private float reverseAcceleration = 1.0f;  // 가속력은 유지
@@ -190,7 +174,7 @@ public class GameScreen implements Screen {
     // --- 점진적 가속 시스템 ---
     private float speedMultiplier = 0.5f; // 초기 속도는 50%부터 시작
     private float speedMultiplierTarget = 1.0f; // 목표 100%
-    private float speedRampUpRate = 0.03f; // 초당 3% 증가 (느리게 가속)
+    private float speedRampUpRate = 0.10f; // 초당 10% 증가 (약 5초에 100% 도달, 더 느림)
     private float turningPower = 10f;
     private float grip = 18.0f;
     private float minSpeedForTurn = 0.8f;
@@ -217,7 +201,6 @@ public class GameScreen implements Screen {
     private static final String MAP_PATH = "f1_racing_map.tmx";
     // Use full path because AssetManager loads under cars/
     private static final String CAR_PATH = "cars/Silverline S11.png";
-    private static final float MAP_RENDER_EXPANSION = 2f;
     // 고정 렌더 크기(로컬/원격 동일 적용)
     private static final float CAR_DRAW_WIDTH = (12.80f * 1.7f) / PPM;
     private static final float CAR_DRAW_HEIGHT = (25.60f * 1.7f) / PPM;
@@ -225,22 +208,23 @@ public class GameScreen implements Screen {
     private static final float VIEW_HEIGHT = 900f / PPM;
     // 멀티플레이 시 기본 스폰 슬롯(첫 번째 맵 기준 요청 값)
     private static final Vector2[] GRID_SPAWNS = new Vector2[]{
-        new Vector2(((87 * 32) + 19) / PPM, (((120 - 92) * 32) - 11) / PPM), // p1: 오른쪽 19px, 뒤로 11px
-        new Vector2(((90 * 32) + 19) / PPM, (((120 - 92) * 32) - 11) / PPM), // p2: 오른쪽 19px, 뒤로 11px
-        new Vector2(((87 * 32) + 19) / PPM, (((120 - 94) * 32) - 11) / PPM), // p3: 오른쪽 19px, 뒤로 11px
-        new Vector2(((90 * 32) + 19) / PPM, (((120 - 94) * 32) - 11) / PPM)  // p4: 오른쪽 19px, 뒤로 11px
+            new Vector2(27.95f, 8.86f), // p1: 오른쪽 19px, 뒤로 11px
+            new Vector2(27.95f ,8.22f), // p2: 오른쪽 19px, 뒤로 11px
+            new Vector2(27.95f ,8.22f), // p3: 오른쪽 19px, 뒤로 11px
+            new Vector2(28.91f,8.86f)  // p4: 오른쪽 19px, 뒤로 11px
     };
     private static final String[] CAR_PATHS = {
-        "cars/Astra A4.png",
-        "cars/Boltworks RX-1.png",
-        "cars/Emerald E7.png",
-        "cars/Gold Rush GT.png",
-        "cars/Midnight P4.png",
-        "cars/Silverline S11.png"
+            "cars/Astra A4.png",
+            "cars/Boltworks RX-1.png",
+            "cars/Emerald E7.png",
+            "cars/Gold Rush GT.png",
+            "cars/Midnight P4.png",
+            "cars/Silverline S11.png"
     };
 
     private final String mapPathOverride;
     private final String carPathOverride;
+    private final List<Vector2> spawnPoints = new ArrayList<>();
 
     public GameScreen() { this(null, null, null, null, null, -1, null); }
 
@@ -260,12 +244,13 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ???? ???? ? ???, ??, ?, HUD? ???.
     @Override
     public void show() {
         long t0 = System.nanoTime();
         camera = new OrthographicCamera();
         viewport = new FitViewport(VIEW_WIDTH * 2f, VIEW_HEIGHT * 2f, camera);
-        camera.zoom = 0.22f; // 더 가까운 뷰 (0.35 -> 0.30, 약 14% 더 가까이)
+        camera.zoom = 0.26f; // 더 가까운 뷰 (0.35 -> 0.30, 약 14% 더 가까이)
 
         batch = new SpriteBatch();
         hudBatch = new SpriteBatch();
@@ -393,6 +378,7 @@ public class GameScreen implements Screen {
             loadCheckpointsFromMap();
             loadStartLineFromMap();
             loadGrassZonesFromMap();
+            loadSpawnPointsFromMap();
             Gdx.app.log("PERF", String.format("Map load+parse: %.2f ms", (System.nanoTime() - mapStart) / 1_000_000f));
         }
 
@@ -407,9 +393,6 @@ public class GameScreen implements Screen {
         hudCamera = new OrthographicCamera();
         hudCamera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         hudCamera.update();
-
-        // 미니맵 카메라 초기화 (재사용)
-        minimapCamera = new OrthographicCamera();
         long hudStart = System.nanoTime();
         initHudResources();
         Gdx.app.log("PERF", String.format("GameScreen HUD init: %.2f ms", (System.nanoTime() - hudStart) / 1_000_000f));
@@ -421,29 +404,9 @@ public class GameScreen implements Screen {
         // 네트워크 전송/수신 설정
         if (lobbyClient != null && roomId != null) {
             lobbyClient.onGameState(this::handleGameState);
-
-            // 레이스 완주 관련 핸들러 등록
-            lobbyClient.onCountdownStart(pkt -> Gdx.app.postRunnable(() -> {
-                Gdx.app.log("GameScreen", String.format("Countdown started! First place: %s (%.2fs), %d seconds remaining",
-                    pkt.firstPlaceUsername, pkt.firstPlaceTime, pkt.remainingSeconds));
-                raceFinishCountdown = pkt.remainingSeconds;
-                firstPlacePlayer = pkt.firstPlaceUsername;
-            }));
-
-            lobbyClient.onCountdownUpdate(pkt -> Gdx.app.postRunnable(() -> {
-                Gdx.app.log("GameScreen", String.format("Countdown update: %d seconds remaining", pkt.remainingSeconds));
-                raceFinishCountdown = pkt.remainingSeconds;
-            }));
-
-            lobbyClient.onRaceResults(pkt -> Gdx.app.postRunnable(() -> {
-                Gdx.app.log("GameScreen", "Race results received! Transitioning to results screen...");
-                gameRef.setScreen(new com.mygame.f1.screens.MultiplayerResultScreen(gameRef, lobbyClient, roomId, pkt));
-            }));
-
-            // 상태 전송 빈도: 30Hz (33ms) - 더 부드러운 동기화
             stateSendTask = Timer.schedule(new Timer.Task() {
                 @Override public void run() { sendState(); }
-            }, 0.033f, 0.033f);
+            }, 0.05f, 0.05f);
         }
 
         // 스타트 카운트 초기화
@@ -452,13 +415,14 @@ public class GameScreen implements Screen {
         goTimer = 0f;
         offTimer = 0f;
         startLightsDone = false;
-        lapTimeSeconds = 0f;
-        lastLapTime = -1f;
-        bestLapTime = -1f;
+            lapTimeSeconds = 0f;
+            lastLapTime = -1f;
+            bestLapTime = -1f;
 
         Gdx.app.log("PERF", String.format("GameScreen.show total: %.2f ms", (System.nanoTime() - t0) / 1_000_000f));
     }
 
+    // Tiled ??? ???? ?? Box2D ?? ? ??? ??.
     private void createWall(float x, float y, float width, float height) {
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.StaticBody;
@@ -477,6 +441,7 @@ public class GameScreen implements Screen {
         shape.dispose();
     }
 
+    // ? ?? ??? ??? ?? ?? ??? ?? ??? ??.
     private void createScreenBoundaryWalls() {
         float worldWidth = mapWorldWidth > 0 ? mapWorldWidth : viewport.getWorldWidth();
         float worldHeight = mapWorldHeight > 0 ? mapWorldHeight : viewport.getWorldHeight();
@@ -490,6 +455,7 @@ public class GameScreen implements Screen {
         createWall(worldWidth - wallThickness, 0f, wallThickness, worldHeight);
     }
 
+    // ???? ?? ??? ???? ?? ?? ? ?? ??? ??.
     private void createPlayerCar() {
         BodyDef bodyDef = new BodyDef();
         bodyDef.type = BodyDef.BodyType.DynamicBody;
@@ -514,6 +480,24 @@ public class GameScreen implements Screen {
     }
 
     private Vector2 computeSpawnPosition() {
+        // 맵이 제공하는 spawn 레이어가 있으면 우선 사용
+        if (!spawnPoints.isEmpty()) {
+            if (roomId != null && selfId >= 0) {
+                IntArray ids = playerVehicles.size > 0 ? playerVehicles.keys().toArray() : new IntArray(new int[]{selfId});
+                ids.sort();
+                int idx = ids.indexOf(selfId);
+                if (idx >= 0 && idx < spawnPoints.size()) {
+                    Vector2 slot = spawnPoints.get(idx);
+                    Gdx.app.log("GameScreen", String.format("Multiplayer spawn (map) at p%d: (%.2f, %.2f)", idx + 1, slot.x, slot.y));
+                    return new Vector2(slot);
+                }
+            }
+            // 싱글플레이 또는 슬롯 초과 시 첫 번째 스폰 사용
+            Vector2 p1 = spawnPoints.get(0);
+            Gdx.app.log("GameScreen", String.format("Singleplayer spawn (map) at p1: (%.2f, %.2f)", p1.x, p1.y));
+            return new Vector2(p1);
+        }
+
         // 멀티플레이일 때 플레이어 ID 순으로 정렬해 슬롯을 배정
         if (roomId != null && selfId >= 0) {
             IntArray ids = playerVehicles.size > 0 ? playerVehicles.keys().toArray() : new IntArray(new int[]{selfId});
@@ -540,6 +524,7 @@ public class GameScreen implements Screen {
         return new Vector2(fallbackX, fallbackY);
     }
 
+    // ? ??? ?? ??? ???? ??, ???, HUD ??? ????.
     public void update(float delta) {
         float frameTime = Math.min(delta, 0.25f);
         accumulator += frameTime;
@@ -574,16 +559,14 @@ public class GameScreen implements Screen {
         if (isColliding) {
             playerCar.setLinearDamping(collisionDamping);
             if (playerCar.getLinearVelocity().len() < 0.5f) {
-                v2_tmp1.set(0, -0.3f);
-                Vector2 forwardDirection = playerCar.getWorldVector(v2_tmp1);
+                Vector2 forwardDirection = playerCar.getWorldVector(new Vector2(0, -0.3f));
                 playerCar.applyLinearImpulse(forwardDirection, playerCar.getWorldCenter(), true);
             }
         }
 
-        v2_tmp1.set(0, cameraOffsetFromCar);
-        Vector2 worldSpaceOffset = playerCar.getWorldVector(v2_tmp1);
-        v2_tmp2.set(playerCar.getPosition()).add(worldSpaceOffset);
-        Vector2 targetPosition = v2_tmp2;
+        Vector2 forwardVector = new Vector2(0, cameraOffsetFromCar);
+        Vector2 worldSpaceOffset = playerCar.getWorldVector(forwardVector);
+        Vector2 targetPosition = new Vector2(playerCar.getPosition()).add(worldSpaceOffset);
 
         camera.position.x = MathUtils.lerp(camera.position.x, targetPosition.x, positionSmoothness * delta);
         camera.position.y = MathUtils.lerp(camera.position.y, targetPosition.y, positionSmoothness * delta);
@@ -596,9 +579,12 @@ public class GameScreen implements Screen {
         camera.rotate(cameraAngle);
         camera.update();
 
-        updateMapRendererView();
+        if (USE_TILED_MAP && mapRenderer != null) {
+            mapRenderer.setView(camera);
+        }
     }
 
+    // ??/????/?? ?? ? ??? ??? ?? ???? ??.
     private void handleInput(float delta) {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             togglePause();
@@ -621,14 +607,13 @@ public class GameScreen implements Screen {
             return;
         }
 
-        if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
+        if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
             playerCar.setLinearDamping(brakingLinearDamping);
         } else if (!isColliding) {
             playerCar.setLinearDamping(defaultLinearDamping);
         }
 
-        v2_tmp1.set(0, 1);
-        Vector2 forwardNormal = playerCar.getWorldVector(v2_tmp1);
+        Vector2 forwardNormal = playerCar.getWorldVector(new Vector2(0, 1));
         float forwardSpeed = playerCar.getLinearVelocity().dot(forwardNormal);
         float currentSpeed = playerCar.getLinearVelocity().len();
 
@@ -648,8 +633,7 @@ public class GameScreen implements Screen {
         currentAcceleration = MathUtils.lerp(currentAcceleration, targetAcceleration, accelerationSmoothness * delta);
 
         if (Math.abs(currentAcceleration) > 0.1f) {
-            v2_tmp1.set(0, currentAcceleration);
-            Vector2 forceVector = playerCar.getWorldVector(v2_tmp1);
+            Vector2 forceVector = playerCar.getWorldVector(new Vector2(0, currentAcceleration));
             playerCar.applyForceToCenter(forceVector, true);
         }
 
@@ -662,6 +646,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ??? ?? ?? ??? ??? ??.
     private void updateSteering(float delta) {
         // 신호등이 꺼지기 전까지 방향 전환 차단
         if (!startLightsDone) {
@@ -671,8 +656,7 @@ public class GameScreen implements Screen {
         float targetAngularVelocity = 0;
         float baseMaxAngularVelocity = MathUtils.degreesToRadians * 190;
 
-        v2_tmp1.set(0, 1);
-        Vector2 forwardNormal = playerCar.getWorldVector(v2_tmp1);
+        Vector2 forwardNormal = playerCar.getWorldVector(new Vector2(0, 1));
         float forwardSpeed = playerCar.getLinearVelocity().dot(forwardNormal);
         boolean movingForward = Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.W);
         boolean movingReverse = Gdx.input.isKeyPressed(Input.Keys.DOWN) || Gdx.input.isKeyPressed(Input.Keys.S);
@@ -680,9 +664,9 @@ public class GameScreen implements Screen {
         // 속도에 따른 회전력 감소 계산
         float currentSpeed = playerCar.getLinearVelocity().len();
         float speedRatio = Math.min(currentSpeed / maxForwardSpeed, 1.0f);  // 0.0 ~ 1.0
-        // 고속일수록 회전력 감소 + 타이어 회전 보정
+        // 고속일수록 회전력 감소: 최고 속도에서 50%까지 감소
         float turnMultiplier = 1.0f - (speedRatio * highSpeedTurnReduction);
-        float maxAngularVelocity = baseMaxAngularVelocity * turnMultiplier * tireTurnMultiplier;
+        float maxAngularVelocity = baseMaxAngularVelocity * turnMultiplier;
 
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.A)) {
             targetAngularVelocity = (movingReverse && forwardSpeed < -0.5f) ? -maxAngularVelocity : maxAngularVelocity;
@@ -696,6 +680,7 @@ public class GameScreen implements Screen {
         playerCar.applyAngularImpulse(impulse, true);
     }
 
+    // ??/??? ??? ?? ?? ??? ??? ??? ??.
     private void updateFriction() {
         boolean isSteering = Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.D);
         float gripFactor = isSteering ? 0.9f : 1.0f;
@@ -713,24 +698,15 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??/?? ??? ?? ??? ???.
     private void limitSpeed() {
-        v2_tmp1.set(0, 1);
-        Vector2 forwardNormal = playerCar.getWorldVector(v2_tmp1);
+        Vector2 forwardNormal = playerCar.getWorldVector(new Vector2(0, 1));
         float forwardSpeed = playerCar.getLinearVelocity().dot(forwardNormal);
         float speed = playerCar.getLinearVelocity().len();
 
         // 점진적 가속 적용
         float effectiveMaxForward = maxForwardSpeed * speedMultiplier;
         float effectiveMaxReverse = maxReverseSpeed * speedMultiplier;
-
-        // 내구도 0 이하일 때 최고 속도를 30%로 제한
-        float durabilityLimiter = (vehicleDurability <= 0f || tireDurability <= 0f) ? 0.3f : 1f;
-        effectiveMaxForward *= durabilityLimiter;
-        effectiveMaxReverse *= durabilityLimiter;
-
-        // 타이어 컴파운드 속도 보정
-        effectiveMaxForward *= tireSpeedMultiplier;
-        effectiveMaxReverse *= tireSpeedMultiplier;
 
         // Grass 페널티 추가 적용
         if (isOnGrass) {
@@ -745,22 +721,19 @@ public class GameScreen implements Screen {
         }
     }
 
-    // 재사용 벡터 (GC 방지)
-    private static final Vector2 LATERAL_DIR = new Vector2(1, 0);
-    private static final Vector2 FORWARD_DIR = new Vector2(0, 1);
-
     private Vector2 getLateralVelocity() {
-        v2_tmp1.set(playerCar.getWorldVector(LATERAL_DIR.set(1, 0)));
+        v2_tmp1.set(playerCar.getWorldVector(new Vector2(1, 0)));
         float rightSpeed = playerCar.getLinearVelocity().dot(v2_tmp1);
         return v2_tmp1.scl(rightSpeed);
     }
 
     private Vector2 getForwardVelocity() {
-        v2_tmp2.set(playerCar.getWorldVector(FORWARD_DIR.set(0, 1)));
+        v2_tmp2.set(playerCar.getWorldVector(new Vector2(0, 1)));
         float forwardSpeed = playerCar.getLinearVelocity().dot(v2_tmp2);
         return v2_tmp2.scl(forwardSpeed);
     }
 
+    // ?? ?? ? ???? ? ?? ?? ? ?? ??? ? ???? ???.
     @Override
     public void render(float delta) {
         if (paused && Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
@@ -776,7 +749,7 @@ public class GameScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         if (USE_TILED_MAP && mapRenderer != null) {
-            updateMapRendererView();
+            mapRenderer.setView(camera);
             mapRenderer.render();
         }
 
@@ -806,12 +779,12 @@ public class GameScreen implements Screen {
             float w = CAR_DRAW_WIDTH;
             float h = CAR_DRAW_HEIGHT;
             batch.draw(tex,
-                rc.position.x - w / 2f, rc.position.y - h / 2f,
-                w / 2f, h / 2f,
-                w, h,
-                1f, 1f,
-                rc.rotation * MathUtils.radiansToDegrees,
-                0, 0, tex.getWidth(), tex.getHeight(), false, false);
+                    rc.position.x - w / 2f, rc.position.y - h / 2f,
+                    w / 2f, h / 2f,
+                    w, h,
+                    1f, 1f,
+                    rc.rotation * MathUtils.radiansToDegrees,
+                    0, 0, tex.getWidth(), tex.getHeight(), false, false);
         }
         batch.end();
 
@@ -826,20 +799,7 @@ public class GameScreen implements Screen {
         drawHud(delta);
     }
 
-    private void updateMapRendererView() {
-        if (!USE_TILED_MAP || mapRenderer == null || camera == null) return;
-
-        float renderWidth = camera.viewportWidth * camera.zoom * MAP_RENDER_EXPANSION;
-        float renderHeight = camera.viewportHeight * camera.zoom * MAP_RENDER_EXPANSION;
-        float centerX = camera.position.x;
-        float centerY = camera.position.y;
-        mapRenderer.setView(camera.combined,
-            centerX - renderWidth / 2f,
-            centerY - renderHeight / 2f,
-            renderWidth,
-            renderHeight);
-    }
-
+    // ?? ?? ?? ? ??/???/HUD ???? ???.
     @Override
     public void resize(int width, int height) {
         viewport.update(width, height, true);
@@ -850,6 +810,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ?? ? ??, ???, ??/??? ? ??? ??.
     @Override
     public void dispose() {
         if (stateSendTask != null) stateSendTask.cancel();
@@ -866,21 +827,18 @@ public class GameScreen implements Screen {
         // TextureRegion은 dispose 불필요 (TextureAtlas가 관리)
         // Atlas에 없는 개별 텍스처만 dispose
         disposeTex(minimapFrameTexture, minimapRegion, minimapCarTexture, raceStatusTexture,
-            durabilityLabelTexture, tireLabelTexture);
-        if (lobbyClient != null) {
-            lobbyClient.onGameState(null);
-            lobbyClient.onCountdownStart(null);
-            lobbyClient.onCountdownUpdate(null);
-            lobbyClient.onRaceResults(null);
-        }
+                   durabilityLabelTexture, tireLabelTexture);
+        if (lobbyClient != null) lobbyClient.onGameState(null);
         for (IntMap.Entry<RemoteCar> e : remoteCars) {
             if (e.value.textureOwned && e.value.texture != null) e.value.texture.dispose();
         }
     }
 
+    // ??, ???, ???, ?? UI ? HUD ??? ?? ???.
     private void drawHud(float delta) {
         if (hudBatch == null || hudCamera == null) return;
-        // setToOrtho()는 resize()에서만 호출 (성능 최적화)
+        hudCamera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        hudCamera.update();
         hudBatch.setProjectionMatrix(hudCamera.combined);
 
         hudBatch.begin();
@@ -892,11 +850,11 @@ public class GameScreen implements Screen {
         drawStartLightsHud();
         drawPitMinigameHud();
         drawLapTimeHud();
-        drawRaceFinishCountdown();  // 멀티플레이어 레이스 종료 카운트다운
         drawRaceResultHud();  // 레이스 종료 화면 (마지막에 그려서 최상위 레이어)
         hudBatch.end();
     }
 
+    // ??? ?? ??? ????? ????? ???? ??.
     private void drawRaceStatusHud() {
         if (tyreSelectSlotRegion == null || hudLapFont == null || hudCamera == null) return;
         float padding = 16f;
@@ -940,6 +898,7 @@ public class GameScreen implements Screen {
         hudLapFont.getData().setScale(1.0f); // 스케일 복원
     }
 
+    // ?? ???? ??, ??? HUD? ???.
     private void drawSpeedHud() {
         if (speedHudRegion == null || hudCamera == null || hudSpeedFont == null || playerCar == null) return;
         float padding = 16f;
@@ -954,9 +913,9 @@ public class GameScreen implements Screen {
         float y = padding;
         hudBatch.draw(speedHudRegion, x, y, texW, texH);
 
-        // 속도 계산: HUD 표기용으로 스케일 축소, 최대 268 표기
-        float rawSpeed = playerCar.getLinearVelocity().len() * PPM * 1.1f * HUD_SPEED_SCALE; // m/s → km/h (표기 축소)
-        float speed = Math.min(rawSpeed, HUD_SPEED_MAX); // 최대 268km/h 표기
+        // 속도 계산: 최대 450km/h로 제한 (5.5 m/s = ~312 km/h * 1.1 = ~343 km/h)
+        float rawSpeed = playerCar.getLinearVelocity().len() * PPM * 1.1f; // m/s → km/h
+        float speed = Math.min(rawSpeed, 450f); // 최대 450km/h
 
         String txt = String.format("%.0f", speed);
 
@@ -971,8 +930,8 @@ public class GameScreen implements Screen {
 
         // 축소된 크기에 맞춰 텍스트 위치 조정 (왼쪽 20px, 위로 7px 추가 이동)
         hudSpeedFont.draw(hudBatch, txt,
-            x + texW * 0.5f - layout.width * 0.5f - 15f - 10f,  // 왼쪽으로 20px 총 이동
-            y + texH * 0.55f + layout.height * 0.5f + 10f - 30f + 7f); // 아래로 30px, 위로 7px 총 이동
+                x + texW * 0.5f - layout.width * 0.5f - 15f - 10f,  // 왼쪽으로 20px 총 이동
+                y + texH * 0.55f + layout.height * 0.5f + 10f - 30f + 7f); // 아래로 30px, 위로 7px 총 이동
 
         // 색상 및 스케일 복원
         hudSpeedFont.setColor(1f, 1f, 1f, 1f); // 흰색
@@ -984,12 +943,13 @@ public class GameScreen implements Screen {
             layout.setText(hudFont, grassWarning);
             hudFont.setColor(1f, 0.5f, 0f, 1f); // 주황색
             hudFont.draw(hudBatch, grassWarning,
-                x + texW * 0.5f - layout.width * 0.5f,
-                y - 10f);
+                    x + texW * 0.5f - layout.width * 0.5f,
+                    y - 10f);
             hudFont.setColor(1f, 1f, 1f, 1f); // 흰색 복원
         }
     }
 
+    // ?? ??? ?? ?? ??? ???.
     private void drawDurabilityHud() {
         if (durabilityBgRegion == null || durabilityFgRegion == null || hudCamera == null) return;
         float padding = 16f;
@@ -1044,6 +1004,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ???? ???? ??? HUD? ??.
     private void drawTireHud() {
         if (tireBgRegion == null || tireFgRegion == null || hudCamera == null) return;
         float padding = 16f;
@@ -1097,6 +1058,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ?? ???? ???? ?? ??? ??.
     private void drawPitMinigameHud() {
         if (gameState != GameState.PIT_MINIGAME) return;
         if (pitPanelRegion == null || pitBarRegion == null || hudCamera == null) return;
@@ -1104,7 +1066,6 @@ public class GameScreen implements Screen {
         float panelH = pitPanelRegion.getRegionHeight();
         float panelX = (hudCamera.viewportWidth - panelW) * 0.5f;
         float panelY = (hudCamera.viewportHeight - panelH) * 0.5f;
-        float selectionAbovePanel = 12f; // 타이어 선택 슬롯을 패널 위로 살짝 띄움
 
         float barW = pitBarRegion.getRegionWidth();
         float barH = pitBarRegion.getRegionHeight();
@@ -1131,19 +1092,22 @@ public class GameScreen implements Screen {
             font.draw(hudBatch, "Result: " + lastPitResult, panelX + 24f, panelY + panelH / 2f + 30f);
         }
 
-        // 5. 타이어 선택 패널 (패널 위쪽)
+        // 5. 타이어 선택 패널 (하단)
         if (pitTyreSelectRegion != null) {
             float selW = pitTyreSelectRegion.getRegionWidth();
             float selH = pitTyreSelectRegion.getRegionHeight();
             float selX = panelX + (panelW - selW) * 0.5f;
-            float selY = panelY + panelH + selectionAbovePanel; // 패널 바로 위쪽에 배치
+            float selY = panelY + 20f; // 패널 하단에 위치
             hudBatch.draw(pitTyreSelectRegion, selX, selY);
 
-            // 버튼 텍스트 색상은 아틀라스 이미지에 포함돼 있어 코드로만 변경 불가
-            // 별도 컬러 텍스트가 필요하면 색상이 적용된 새 슬롯/버튼 아틀라스를 추가해야 함
+            // 안내 텍스트 (타이어 선택 패널 아래)
+            String instructionText = "Q/W/E = SOFT/MEDIUM/HARD";
+            layout.setText(font, instructionText);
+            float instructionX = selX + (selW - layout.width) / 2f; // 중앙 정렬
+            font.draw(hudBatch, instructionText, instructionX, selY - 8f);
         }
 
-        // 6. 타이밍 바 상태 텍스트 (바 아래, 기존 위치)
+        // 6. 타이밍 바 상태 텍스트 (바 아래)
         String statusText;
         if (pitServiceTimeRemaining > 0f) {
             statusText = String.format("Service: %.1fs", Math.max(0f, pitServiceTimeRemaining));
@@ -1151,18 +1115,11 @@ public class GameScreen implements Screen {
             statusText = "Press ENTER/SPACE";
         }
         layout.setText(font, statusText);
-        float statusX = barX + (barW - layout.width) / 2f; // 기존처럼 바 기준 중앙
-        float statusY = barY - 32f; // 기존처럼 바 아래 충분한 간격
-        font.draw(hudBatch, statusText, statusX, statusY);
-
-        // 7. 타이어 선택 안내 텍스트: Press 문구 바로 아래 (패널 내부)
-        String instructionText = "Q/W/E = SOFT/MEDIUM/HARD";
-        layout.setText(font, instructionText);
-        float instructionX = statusX; // 동일 x 정렬
-        float instructionY = statusY - 28f; // Press 바로 아래
-        font.draw(hudBatch, instructionText, instructionX, instructionY);
+        float statusX = barX + (barW - layout.width) / 2f; // 중앙 정렬
+        font.draw(hudBatch, statusText, statusX, barY - 32f); // 바 아래 충분한 간격
     }
 
+    // ?? ?, ???/?? ? ??? ???.
     private void drawLapTimeHud() {
         if (lapBestBgRegion == null || lapLastBgRegion == null || hudCamera == null || hudFont == null) return;
         float boxW = 200f;
@@ -1211,46 +1168,10 @@ public class GameScreen implements Screen {
     }
 
     /**
-     * 멀티플레이어 레이스 종료 카운트다운 표시
-     * 1등 완주 시 화면 중앙에 큰 숫자로 표시
-     */
-    private void drawRaceFinishCountdown() {
-        if (raceFinishCountdown < 0 || hudCamera == null || hudLapFont == null) return;
-
-        // 화면 중앙에 큰 숫자 표시
-        String countdownText = String.valueOf(raceFinishCountdown);
-        layout.setText(hudLapFont, countdownText);
-        float x = (hudCamera.viewportWidth - layout.width) / 2f;
-        float y = (hudCamera.viewportHeight + layout.height) / 2f;
-
-        // 카운트다운 숫자 (노란색)
-        hudLapFont.setColor(1f, 0.9f, 0.2f, 1f);
-        hudLapFont.draw(hudBatch, countdownText, x, y);
-        hudLapFont.setColor(Color.WHITE);
-
-        // 1등 플레이어 정보 (숫자 위에)
-        if (!firstPlacePlayer.isEmpty() && hudFont != null) {
-            String firstPlaceText = firstPlacePlayer + " finished first!";
-            layout.setText(hudFont, firstPlaceText);
-            float msgX = (hudCamera.viewportWidth - layout.width) / 2f;
-            float msgY = y + layout.height + 40f;
-            hudFont.setColor(Color.GREEN);
-            hudFont.draw(hudBatch, firstPlaceText, msgX, msgY);
-            hudFont.setColor(Color.WHITE);
-        }
-
-        // 안내 메시지 (숫자 아래)
-        String infoText = "Finish the race or wait...";
-        layout.setText(hudFont, infoText);
-        float infoX = (hudCamera.viewportWidth - layout.width) / 2f;
-        float infoY = y - 60f;
-        hudFont.draw(hudBatch, infoText, infoX, infoY);
-    }
-
-    /**
      * 레이스 종료 시 결과 화면 표시
      * 반투명 검은 배경 위에 기록과 버튼 표시
      */
+    // ??? ?? ?? ??? ???.
     private void drawRaceResultHud() {
         if (gameState != GameState.FINISHED || hudCamera == null || hudFont == null) return;
 
@@ -1338,16 +1259,7 @@ public class GameScreen implements Screen {
         }
     }
 
-    /**
-     * 플레이어 ID에 따른 고유 색상 반환
-     * 로컬 플레이어는 빨간색, 원격 플레이어는 각각 구분되는 색상
-     * playerId를 직접 사용하여 색상을 결정 (더 안정적)
-     */
-    private Color getPlayerColor(int playerId) {
-        // static 배열에서 재사용 (매 프레임 Color 객체 생성 방지)
-        return PLAYER_COLORS[playerId % PLAYER_COLORS.length];
-    }
-
+    // ???? ?? ???? ?? ??? ??.
     private void drawMinimapHud() {
         if (minimapFrameTexture == null || hudCamera == null) return;
 
@@ -1380,12 +1292,40 @@ public class GameScreen implements Screen {
         float offsetX = (mapAreaW - renderW) / 2f;
         float offsetY = (mapAreaH - renderH) / 2f;
 
-        // 미니맵 배경 (간단한 어두운 배경 - Tiled 맵 렌더링 제거로 성능 향상)
-        // 기존: 매 프레임 Tiled 맵 전체를 미니맵에 다시 렌더링 (매우 비효율적)
-        // 개선: 배경 텍스처만 사용하거나 생략 (플레이어 위치만 표시)
-        if (minimapRegion != null) {
-            hudBatch.draw(minimapRegion, mapAreaX + offsetX, mapAreaY + offsetY, renderW, renderH);
+        // HUD 배치 종료하고 Tiled 맵 렌더링
+        hudBatch.end();
+
+        // Tiled 맵을 미니맵 영역에 렌더링
+        if (mapRenderer != null && map != null && mapW > 0 && mapH > 0) {
+            // 미니맵용 임시 카메라 설정 (맵 전체를 보도록)
+            OrthographicCamera minimapCamera = new OrthographicCamera();
+            minimapCamera.setToOrtho(false, mapW, mapH);
+            minimapCamera.position.set(mapW / 2f, mapH / 2f, 0);
+            minimapCamera.zoom = 1.0f; // 전체 맵이 보이도록
+            minimapCamera.update();
+
+            // 뷰포트 설정 (미니맵 영역만 렌더링하도록 제한)
+            Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+            int scissorX = (int)(mapAreaX + offsetX);
+            int scissorY = (int)(mapAreaY + offsetY);
+            int scissorW = (int)renderW;
+            int scissorH = (int)renderH;
+            Gdx.gl.glScissor(scissorX, scissorY, scissorW, scissorH);
+
+            // 뷰포트를 미니맵 영역으로 설정
+            Gdx.gl.glViewport(scissorX, scissorY, scissorW, scissorH);
+
+            // Tiled 맵 렌더링 (전체 맵)
+            mapRenderer.setView(minimapCamera);
+            mapRenderer.render();
+
+            // 뷰포트를 원래대로 복원
+            Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
         }
+
+        // HUD 배치 재개
+        hudBatch.begin();
 
         // 플레이어 위치 표시
         if (minimapCarTexture != null && playerCar != null) {
@@ -1413,9 +1353,7 @@ public class GameScreen implements Screen {
 
             if (rx >= mapAreaX && rx <= mapAreaX + mapAreaW &&
                 ry >= mapAreaY && ry <= mapAreaY + mapAreaH) {
-                // 플레이어 ID별 고유 색상 할당
-                Color playerColor = getPlayerColor(remote.playerId);
-                hudBatch.setColor(playerColor);
+                hudBatch.setColor(0.2f, 0.5f, 1f, 1f); // 파란색
                 hudBatch.draw(minimapCarTexture,
                     rx - minimapCarTexture.getWidth() / 2f,
                     ry - minimapCarTexture.getHeight() / 2f);
@@ -1424,6 +1362,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ?? ??? GO ???? ??.
     private void drawStartLightsHud() {
         if (startLightsDone || hudCamera == null) return;
         if (startLightOnRegion == null || startLightOffRegion == null) return;
@@ -1458,6 +1397,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ????? ???? ???? ??? ??.
     private void updateStartLights(float delta) {
         if (startLightsDone) return;
         if (startCountdown > 0f) {
@@ -1484,6 +1424,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??/??? ?? ?? ???? ??? ??? ??.
     private void updateDurability(float delta) {
         if (gameState != GameState.NORMAL) return;
         if (playerCar == null) return;
@@ -1493,11 +1434,12 @@ public class GameScreen implements Screen {
     }
 
     private float getCompoundWearRate() {
-        if ("soft".equalsIgnoreCase(pitSelectedCompound)) return 100f / 90f;  // 약 90초에 100% 소모
-        if ("hard".equalsIgnoreCase(pitSelectedCompound)) return 100f / 150f;  // 약 150초에 100% 소모
-        return 100f / 130f; // medium 기본 약 130초
+        if ("soft".equalsIgnoreCase(pitSelectedCompound)) return 100f / 50f;  // 50초에 100% 소모
+        if ("hard".equalsIgnoreCase(pitSelectedCompound)) return 100f / 90f;  // 90초에 100% 소모
+        return 100f / 70f; // medium default
     }
 
+    // ?? ???????????? ???? ?? ?? ??.
     private void handlePitState(float delta) {
         if (gameState == GameState.NORMAL) {
             if (pitEntryRect != null && pitEntryRect.contains(playerCar.getPosition())) {
@@ -1573,10 +1515,10 @@ public class GameScreen implements Screen {
         } else if (gameState == GameState.PIT_EXITING) {
             if (pitExitPos != null) {
                 Vector2 pos = playerCar.getPosition();
-                v2_tmp1.set(pitExitPos).sub(pos); // 재사용 벡터 사용 (GC 방지)
-                if (v2_tmp1.len() > 0.01f) {
-                    v2_tmp1.nor().scl(0.5f);
-                    playerCar.setLinearVelocity(v2_tmp1);
+                Vector2 dir = new Vector2(pitExitPos).sub(pos);
+                if (dir.len() > 0.01f) {
+                    dir.nor().scl(0.5f);
+                    playerCar.setLinearVelocity(dir);
                 } else {
                     playerCar.setTransform(pitExitPos, pitExitAngleDeg * MathUtils.degreesToRadians);
                     gameState = GameState.NORMAL;
@@ -1592,26 +1534,22 @@ public class GameScreen implements Screen {
         return false;
     }
 
+    // ??? ????? ?? ??/??? ??? ??.
     private void setTireCompound(String comp) {
         if ("soft".equalsIgnoreCase(comp) && tireCompoundSoftRegion != null) {
             tireCompoundRegion = tireCompoundSoftRegion;
-            tireWearRate = 100f / 90f;
-            tireSpeedMultiplier = 1.12f;   // 최고속도 +12%
-            tireTurnMultiplier = 1.0f;
+            tireWearRate = 0.22f;
         } else if ("hard".equalsIgnoreCase(comp) && tireCompoundHardRegion != null) {
             tireCompoundRegion = tireCompoundHardRegion;
-            tireWearRate = 100f / 150f;
-            tireSpeedMultiplier = 1.0f;    // 속도 보정 없음
-            tireTurnMultiplier = 0.85f;    // 회전율 15% 감소
+            tireWearRate = 0.12f;
         } else if (tireCompoundMediumRegion != null) {
             tireCompoundRegion = tireCompoundMediumRegion;
-            tireWearRate = 100f / 130f;
-            tireSpeedMultiplier = 1.0f;
-            tireTurnMultiplier = 1.0f;
+            tireWearRate = 0.15f;
         }
         pitSelectedCompound = comp;
     }
 
+    // HUD? ??? ??, ????, ???? ??.
     private void initHudResources() {
         hudFont = loadFont("fonts/capitolcity.ttf", 18);
         hudSmallFont = loadFont("fonts/capitolcity.ttf", 14);
@@ -1714,6 +1652,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ????? ???? dispose.
     private void disposeTex(Texture... texes) {
         if (texes == null) return;
         for (Texture t : texes) {
@@ -1721,6 +1660,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ??? ?? ???? ??.
     private void disposeFont(BitmapFont... fonts) {
         if (fonts == null) return;
         for (BitmapFont f : fonts) {
@@ -1728,6 +1668,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ESC? UI ???? ????? ??.
     private void togglePause() {
         paused = !paused;
         if (paused) {
@@ -1739,6 +1680,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ???? ????? ??? ??.
     private void buildPauseUI() {
         pauseStage.clear();
         Table root = new Table();
@@ -1774,6 +1716,7 @@ public class GameScreen implements Screen {
         root.add(panel).center();
     }
 
+    // ???? ??? ? ??? ???? ??? ???.
     private void drawPauseOverlay() {
         if (pauseStage != null) {
             pauseStage.act(Gdx.graphics.getDeltaTime());
@@ -1781,15 +1724,19 @@ public class GameScreen implements Screen {
         }
     }
 
+    // Screen ????? ????: ?? ?? ??.
     @Override
     public void hide() {}
 
+    // ? ???? ??(?? ?? ?? ??).
     @Override
     public void pause() {}
 
+    // ? ?? ??(?? ?? ?? ??).
     @Override
     public void resume() {}
 
+    // ? ?? ??? ??? ????? ??.
     private void sendState() {
         if (lobbyClient == null || roomId == null || playerCar == null) return;
         Vector2 pos = playerCar.getPosition();
@@ -1805,32 +1752,21 @@ public class GameScreen implements Screen {
         lobbyClient.sendPlayerState(roomId, ps);
     }
 
+    // ???? ??? ?? ??? ?? ?? ??? ??.
     private void handleGameState(Packets.GameStatePacket gs) {
         if (gs == null || gs.playerStates == null) return;
-        long currentTime = System.currentTimeMillis();
         for (Packets.PlayerState ps : gs.playerStates) {
             if (ps.playerId == selfId) continue;
             RemoteCar rc = remoteCars.get(ps.playerId);
             if (rc == null) {
                 rc = new RemoteCar();
-                rc.playerId = ps.playerId;  // 플레이어 ID 저장
                 rc.vehicleIndex = ps.vehicleIndex;
                 rc.texture = loadCarTexture(ps.vehicleIndex);
                 rc.textureOwned = rc.texture != null && rc.texture != carTexture;
                 remoteCars.put(ps.playerId, rc);
             }
-            // 이전 목표 위치/회전 저장 (보간용)
-            rc.prevTargetPosition.set(rc.targetPosition);
-            rc.prevTargetRotation = rc.targetRotation;
-            // 새 목표 위치/회전 설정
             rc.targetPosition.set(ps.x, ps.y);
             rc.targetRotation = ps.rotation;
-            // 속도 정보 저장 (외삽용)
-            rc.velocity.set(ps.velocityX, ps.velocityY);
-            rc.angularVelocity = ps.angularVelocity;
-            // 시간 정보 업데이트
-            rc.lastUpdateTime = currentTime;
-            rc.timeSinceUpdate = 0f;
             if (!rc.initialized) {
                 rc.position.set(rc.targetPosition);
                 rc.rotation = rc.targetRotation;
@@ -1878,6 +1814,7 @@ public class GameScreen implements Screen {
         return null;
     }
 
+    // Tiled ??? ?? ??/??/?? ??? ?? ??? ??.
     private void parsePitLayer() {
         pitEntryRect = pitServiceRect = pitExitRect = null;
         if (map == null) {
@@ -1923,6 +1860,7 @@ public class GameScreen implements Screen {
         }
     }
 
+    // ?? checkpoint ???? ?? ?? ?? ????? ??? ??.
     private void loadCheckpointsFromMap() {
         checkpoints.clear();
         checkpointsInside.clear();
@@ -1990,6 +1928,7 @@ public class GameScreen implements Screen {
         Gdx.app.log("GameScreen", String.format("Loaded %d checkpoints (max index: %d)", checkpoints.size(), totalCheckpoints));
     }
 
+    // ????? ??? ??? ? ??? ??? ??.
     private void loadStartLineFromMap() {
         startLineBounds = null;
         if (map == null) {
@@ -2020,6 +1959,7 @@ public class GameScreen implements Screen {
      * Grass 영역을 Box2D 정적 바디(센서)로 로드.
      * 모든 Grass 폴리곤을 하나의 정적 Body로 통합하여 효율성 향상.
      */
+    // Grass ???? Box2D ??? ??? ?? ??? ??.
     private void loadGrassZonesFromMap() {
         if (map == null) {
             Gdx.app.log("GameScreen", "WARNING: map is null in loadGrassZonesFromMap");
@@ -2051,6 +1991,71 @@ public class GameScreen implements Screen {
         }
 
         Gdx.app.log("GameScreen", String.format("Loaded %d grass fixtures on single body", fixtureCount));
+    }
+
+    /**
+     * Spawn 레이어(Object layer "spawn")에서 슬롯별 시작 위치를 읽어온다.
+     * Rectangle/Ellipse 오브젝트는 중심 좌표를 사용하고, slot/index 속성을 우선으로 슬롯 번호를 읽는다.
+     */
+    private void loadSpawnPointsFromMap() {
+        spawnPoints.clear();
+        if (map == null) {
+            Gdx.app.log("GameScreen", "WARNING: map is null in loadSpawnPointsFromMap");
+            return;
+        }
+
+        MapLayer spawnLayer = findLayer("spawn");
+        if (spawnLayer == null) {
+            Gdx.app.log("GameScreen", "WARNING: spawn layer not found");
+            return;
+        }
+
+        Map<Integer, Vector2> indexed = new TreeMap<>();
+        int autoIndex = 1;
+
+        for (MapObject obj : spawnLayer.getObjects()) {
+            MapProperties props = obj.getProperties();
+            Object slotProp = props.get("slot");
+            if (slotProp == null) slotProp = props.get("index");
+
+            int slot = autoIndex;
+            if (slotProp != null) {
+                try {
+                    if (slotProp instanceof Number) slot = ((Number) slotProp).intValue();
+                    else slot = Integer.parseInt(String.valueOf(slotProp));
+                } catch (Exception ignored) { /* fallback to auto index */ }
+            }
+
+            Vector2 pos = null;
+            if (obj instanceof RectangleMapObject rectObj) {
+                Rectangle r = rectObj.getRectangle();
+                pos = new Vector2((r.x + r.width / 2f) / PPM, (r.y + r.height / 2f) / PPM);
+            } else if (obj instanceof com.badlogic.gdx.maps.objects.EllipseMapObject ellipseObj) {
+                Ellipse e = ellipseObj.getEllipse();
+                pos = new Vector2((e.x + e.width / 2f) / PPM, (e.y + e.height / 2f) / PPM);
+            } else {
+                Float x = props.get("x", Float.class);
+                Float y = props.get("y", Float.class);
+                if (x != null && y != null) {
+                    pos = new Vector2(x / PPM, y / PPM);
+                }
+            }
+
+            if (pos != null) {
+                indexed.put(slot, pos);
+                autoIndex++;
+            }
+        }
+
+        if (indexed.isEmpty()) {
+            Gdx.app.log("GameScreen", "WARNING: spawn layer found but no valid objects");
+            return;
+        }
+
+        for (Map.Entry<Integer, Vector2> e : indexed.entrySet()) {
+            spawnPoints.add(new Vector2(e.getValue()));
+        }
+        Gdx.app.log("GameScreen", String.format("Loaded %d spawn points from spawn layer", spawnPoints.size()));
     }
 
     /**
@@ -2101,7 +2106,7 @@ public class GameScreen implements Screen {
             // 면적 검증
             float area = Math.abs(
                 (triangle[1].x - triangle[0].x) * (triangle[2].y - triangle[0].y) -
-                    (triangle[2].x - triangle[0].x) * (triangle[1].y - triangle[0].y)
+                (triangle[2].x - triangle[0].x) * (triangle[1].y - triangle[0].y)
             ) * 0.5f;
 
             if (area < MIN_AREA) continue;
@@ -2141,6 +2146,7 @@ public class GameScreen implements Screen {
         return 1;
     }
 
+    // ?? ??? ????? ?? ??? ? ??? ??.
     private void updateLapAndCheckpoints(float delta) {
         if (playerCar == null) return;
         lapTimeSeconds += delta;
@@ -2172,9 +2178,6 @@ public class GameScreen implements Screen {
                 // 총 레이스 시간에 현재 랩 타임 누적
                 totalRaceTime += lastLapTime;
 
-                // 완료된 랩 타임 기록
-                completedLapTimes.add(lastLapTime);
-
                 currentLap++;
 
                 // 레이스 완료 확인
@@ -2193,48 +2196,16 @@ public class GameScreen implements Screen {
 
     // updateGrassZoneCheck() 메서드 제거됨 - Box2D ContactListener에서 자동 처리
 
-    // 네트워크 업데이트 간격 (서버 브로드캐스트 주기)
-    private static final float NETWORK_UPDATE_INTERVAL = 0.033f; // ~30Hz (33ms)
-    // 외삽 최대 시간 (이 시간 이상 지나면 외삽 중지)
-    private static final float MAX_EXTRAPOLATION_TIME = 0.15f; // 150ms
-
+    // ????? ?? ?? ??? ??/??? ???? ??.
     private void updateRemoteCars(float delta) {
+        // 보간 속도를 높여 좀 더 매끄럽게 이동 (필요시 15~20 정도로 조정 가능)
+        float lerp = MathUtils.clamp(delta * 15f, 0f, 1f);
         for (IntMap.Entry<RemoteCar> e : remoteCars) {
             RemoteCar rc = e.value;
             if (!rc.initialized) continue;
-
-            rc.timeSinceUpdate += delta;
-
-            // 외삽 + 보간 혼합 방식
-            if (rc.timeSinceUpdate < NETWORK_UPDATE_INTERVAL) {
-                // 새 데이터 도착 직후: 목표 위치로 부드럽게 보간
-                float t = rc.timeSinceUpdate / NETWORK_UPDATE_INTERVAL;
-                t = smoothstep(t); // 더 부드러운 보간을 위한 smoothstep
-
-                // 이전 목표에서 새 목표로 보간
-                rc.position.x = MathUtils.lerp(rc.prevTargetPosition.x, rc.targetPosition.x, t);
-                rc.position.y = MathUtils.lerp(rc.prevTargetPosition.y, rc.targetPosition.y, t);
-                rc.rotation = MathUtils.lerpAngle(rc.prevTargetRotation, rc.targetRotation, t);
-            } else if (rc.timeSinceUpdate < MAX_EXTRAPOLATION_TIME) {
-                // 네트워크 지연 시: 속도 기반 외삽
-                float extrapolationTime = rc.timeSinceUpdate - NETWORK_UPDATE_INTERVAL;
-
-                // 속도 기반 위치 예측 (감쇠 적용)
-                float damping = 1.0f - (extrapolationTime / MAX_EXTRAPOLATION_TIME) * 0.5f;
-                v2_tmp1.set(rc.velocity).scl(extrapolationTime * damping);
-                rc.position.set(rc.targetPosition).add(v2_tmp1);
-
-                // 각속도 기반 회전 예측
-                rc.rotation = rc.targetRotation + rc.angularVelocity * extrapolationTime * damping;
-            }
-            // MAX_EXTRAPOLATION_TIME 초과 시: 마지막 외삽 위치 유지 (더 이상 움직이지 않음)
+            rc.position.lerp(rc.targetPosition, lerp);
+            rc.rotation = MathUtils.lerpAngle(rc.rotation, rc.targetRotation, lerp);
         }
-    }
-
-    // Smoothstep 함수: 더 자연스러운 보간을 위한 이징 함수
-    private float smoothstep(float t) {
-        t = MathUtils.clamp(t, 0f, 1f);
-        return t * t * (3f - 2f * t);
     }
 
     private Texture loadCarTexture(int vehicleIndex) {
@@ -2252,8 +2223,9 @@ public class GameScreen implements Screen {
 
     /**
      * 레이스 완료 시 호출되는 메서드
-     * 싱글플레이와 멀티플레이를 분기 처리
+     * 게임을 일시정지하고 결과 화면 표시
      */
+    // ??? ?? ? ?? ?? ? ??? ???? ??.
     private void onRaceFinished() {
         Gdx.app.log("GameScreen", String.format("=== RACE FINISHED ==="));
         Gdx.app.log("GameScreen", String.format("Total Laps: %d", totalLaps));
@@ -2267,47 +2239,15 @@ public class GameScreen implements Screen {
             playerCar.setAngularVelocity(0);
         }
 
-        // 멀티플레이 vs 싱글플레이 분기
-        if (lobbyClient != null && lobbyClient.isConnected() && roomId != null) {
-            onMultiplayerRaceFinished();
-        } else {
-            onSingleplayerRaceFinished();
-        }
-    }
-
-    /**
-     * 싱글플레이 레이스 완료 처리
-     */
-    private void onSingleplayerRaceFinished() {
-        Gdx.app.log("GameScreen", "Singleplayer race finished - showing results");
+        // 게임 상태를 종료로 변경
         gameState = GameState.FINISHED;
-    }
-
-    /**
-     * 멀티플레이 레이스 완료 처리
-     * 서버에 완주 정보를 전송하고 카운트다운 대기
-     */
-    private void onMultiplayerRaceFinished() {
-        Gdx.app.log("GameScreen", "Multiplayer race finished - sending results to server");
-
-        // 랩 타임 배열 생성
-        float[] lapTimesArray = new float[completedLapTimes.size()];
-        for (int i = 0; i < completedLapTimes.size(); i++) {
-            lapTimesArray[i] = completedLapTimes.get(i);
-        }
-
-        // 서버에 완주 정보 전송
-        lobbyClient.sendPlayerFinished(roomId, selfId, totalRaceTime, lapTimesArray);
-
-        // 게임 상태를 FINISHED로 변경하여 랩 카운팅 중지
-        gameState = GameState.FINISHED;
-        Gdx.app.log("GameScreen", "Waiting for other players to finish...");
     }
 
     /**
      * 레이스 재시작
      * 모든 상태를 초기화하고 처음부터 다시 시작
      */
+    // ?/?????/?? ??? ???? ???.
     private void restartRace() {
         // 랩 관련 상태 초기화
         currentLap = 0; // 완료된 랩 수 초기화
@@ -2315,7 +2255,6 @@ public class GameScreen implements Screen {
         lastLapTime = -1f;
         bestLapTime = -1f;
         totalRaceTime = 0f;
-        completedLapTimes.clear(); // 랩 타임 기록 초기화
         lastCheckpointIndex = 0;
         checkpointsInside.clear();
         insideStartLine = false;
@@ -2347,24 +2286,18 @@ public class GameScreen implements Screen {
     /**
      * 메인 메뉴로 돌아가기
      */
+    // ?? ??? ???? ?? ??? ????.
     private void exitToMenu() {
         Gdx.app.log("GameScreen", "Exiting to main menu");
         gameRef.setScreen(new com.mygame.f1.screens.MainMenuScreen(gameRef));
     }
 
     private static class RemoteCar {
-        int playerId;  // 플레이어 ID 추가 (미니맵 색상 결정용)
         int vehicleIndex;
         final Vector2 position = new Vector2();
         final Vector2 targetPosition = new Vector2();
-        final Vector2 velocity = new Vector2();        // 속도 정보 (외삽용)
-        final Vector2 prevTargetPosition = new Vector2(); // 이전 목표 위치 (보간용)
         float rotation;
         float targetRotation;
-        float prevTargetRotation;                       // 이전 목표 회전 (보간용)
-        float angularVelocity;                          // 각속도 (외삽용)
-        long lastUpdateTime;                            // 마지막 업데이트 시간
-        float timeSinceUpdate;                          // 마지막 업데이트 이후 경과 시간
         Texture texture;
         boolean textureOwned;
         boolean initialized = false;
