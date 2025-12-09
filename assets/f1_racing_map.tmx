@@ -677,7 +677,7 @@
   </layer>
  </group>
  <group id="11" name="object">
-  <objectgroup id="12" name="startgrid" visible="0">
+  <objectgroup id="12" name="startgrid">
    <properties>
     <property name="type" value="start_line"/>
    </properties>
@@ -687,7 +687,7 @@
     </properties>
    </object>
   </objectgroup>
-  <objectgroup id="13" name="checkpoints" visible="0">
+  <objectgroup id="13" name="checkpoints">
    <properties>
     <property name="cpIndex" type="int" value="1"/>
    </properties>
@@ -742,7 +742,7 @@
     </properties>
    </object>
   </objectgroup>
-  <objectgroup id="8" name="Collision" visible="0">
+  <objectgroup id="8" name="Collision">
    <object id="56" x="512.121" y="2303.03" width="1142.42" height="1348.48"/>
    <object id="57" x="1656" y="3392" width="4312" height="280"/>
    <object id="58" x="5624" y="328" width="336" height="3344"/>
@@ -791,7 +791,7 @@
     <polygon points="0,0 -6.06061,609.091 24.2424,660.606 130.303,766.667 390.909,1030.3 430.303,1072.73 678.788,1075.76 900,1084.85 1227.27,1090.91 1245.45,1175.76 2142.42,1190.91 2139.39,1066.67 2369.7,1051.52 2378.79,1233.33 2484.85,1221.21 2487.88,1027.27 2412.12,987.879 2381.82,954.545 2351.52,915.152 2351.52,854.545 2348.48,781.818 2336.36,772.727 2048.48,772.727 2042.42,848.485 2042.42,896.97 2021.21,942.424 2000,987.879 1939.39,1015.15 1884.85,1021.21 1754.55,1030.3 1684.85,1024.24 1651.52,996.97 1621.21,972.727 1587.88,903.03 1581.82,809.091 1569.7,745.455 1569.7,712.121 1566.67,684.848 1509.09,606.061 1400,533.333 1169.7,496.97 1063.64,442.424 857.576,227.273 824.242,166.667 812.121,66.6667 812.121,3.0303"/>
    </object>
   </objectgroup>
-  <objectgroup id="14" name="pit" visible="0">
+  <objectgroup id="14" name="pit">
    <object id="76" x="4062" y="2772" width="302" height="84">
     <properties>
      <property name="autosnap" type="bool" value="true"/>
