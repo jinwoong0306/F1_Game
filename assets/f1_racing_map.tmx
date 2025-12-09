@@ -687,7 +687,7 @@
     </properties>
    </object>
   </objectgroup>
-  <objectgroup id="13" name="checkpoints">
+  <objectgroup id="13" name="checkpoints" visible="0">
    <properties>
     <property name="cpIndex" type="int" value="1"/>
    </properties>
@@ -777,7 +777,7 @@
    <object id="115" x="780" y="594" width="79" height="73"/>
    <object id="116" x="753" y="679" width="62" height="178"/>
   </objectgroup>
-  <objectgroup id="10" name="Grass" visible="0">
+  <objectgroup id="10" name="Grass">
    <object id="42" x="2062.67" y="2893.33">
     <polygon points="0,0 3104,-5.45455 3107.03,-1035.76 1458.55,-1044.85 1458.55,-835.758 2873.7,-832.727 2867.64,-193.333 207.03,-226.667 204,-972.121 -120.242,-975.152 -38.4242,-944.848 -59.6364,-944.848 -32.3636,-917.576 -14.1818,-887.273 -11.1515,-853.939 -14.1818,-823.636 -14.1818,-53.9394 -14.1818,-32.7273 -14.6667,-11.3333"/>
    </object>
