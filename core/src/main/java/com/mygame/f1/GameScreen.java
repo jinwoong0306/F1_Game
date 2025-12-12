@@ -1280,7 +1280,7 @@ public class GameScreen implements Screen {
             hudFont.setColor(Color.WHITE);
         }
 
-        // 안내 메시지 (숫자 아래)
+        // 안내 메시지 (숫자 아래)/2
         String infoText = "Finish the race or wait...";
         layout.setText(hudFont, infoText);
         float infoX = (hudCamera.viewportWidth - layout.width) / 2f;
@@ -1391,8 +1391,7 @@ public class GameScreen implements Screen {
         return PLAYER_COLORS[playerId % PLAYER_COLORS.length];
     }
 
-    // ???? ?? ???? ?? ??? ??.
-    // ???? ?? ???? ?? ??? ??.
+    // 
     private void drawMinimapHud() {
         if (minimapFrameTexture == null || hudCamera == null) return;
 
@@ -2495,7 +2494,7 @@ public class GameScreen implements Screen {
         boolean textureOwned;
         boolean initialized = false;
     }
-
+//왜 계속 안된다고 하는거지??ㅇㄹㅇㄻ
     private static class Checkpoint {
         final int index;
         final Rectangle bounds;
