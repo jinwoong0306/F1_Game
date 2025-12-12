@@ -61,7 +61,7 @@ public class GameScreen implements Screen {
     private final int selfId;
     private final com.badlogic.gdx.utils.IntIntMap playerVehicles = new com.badlogic.gdx.utils.IntIntMap();
 
-    // --- 재사용 변수 (성능 최적화) ---
+    // --- 재사용 변수 (성능 최적화) ---변수 사용을 최적 화 해볼까용 ..!!
     private final Vector2 v2_tmp1 = new Vector2();
     private final Vector2 v2_tmp2 = new Vector2();
 
