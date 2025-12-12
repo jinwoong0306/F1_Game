@@ -1280,7 +1280,7 @@ public class GameScreen implements Screen {
             hudFont.setColor(Color.WHITE);
         }
 
-        // 안내 메시지 (숫자 아래)
+        // 안내 메시지 (숫자 아래)/2
         String infoText = "Finish the race or wait...";
         layout.setText(hudFont, infoText);
         float infoX = (hudCamera.viewportWidth - layout.width) / 2f;
